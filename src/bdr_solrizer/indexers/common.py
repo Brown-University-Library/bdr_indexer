@@ -46,7 +46,6 @@ class SolrDate:
     @property
     def month_text(self):
         return MONTH_MAP.get(self.month)
-        pass
 
     @property
     def day(self):
