@@ -160,6 +160,8 @@ class TestModsIndexer(unittest.TestCase):
         index_data = indexer.index_dates().data
         self.assertEqual(index_data['copyrightDate'], '2008-01-01T00:00:00Z')
         self.assertEqual(index_data['copyrightDate_year_ssim'], ['2008'])
+        self.assertEqual(index_data['copyrightDate_month_ssim'], ['01'])
+        self.assertEqual(index_data['copyrightDate_month_text_ssim'], ['January'])
         self.assertEqual(index_data['dateCreated'], '2018-01-01T00:00:00Z')
         self.assertTrue('dateIssued' not in index_data)
         self.assertEqual(index_data['dateCreated_year_ssim'], ['2018'])
@@ -170,6 +172,8 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_dateIssued_end_ssim'], ['2008-04-25'])
         self.assertEqual(index_data['dateModified'], '2008-05-06T00:00:00Z')
         self.assertEqual(index_data['dateModified_year_ssim'], ['2008'])
+        self.assertEqual(index_data['dateModified_month_ssim'], ['05'])
+        self.assertEqual(index_data['dateModified_month_text_ssim'], ['May'])
         self.assertEqual(index_data['mods_dateModified_ssim'],
             ['2008-06-07-2009-01-02', 'invalid date',  '2008-05-06', '2008-06-07'])
 

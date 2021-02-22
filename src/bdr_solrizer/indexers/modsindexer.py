@@ -63,12 +63,18 @@ class ModsIndexer(CommonIndexer):
                     # for all valid dates, add the year to the year field
                     # (eg. dateCreated_year_ssim)
                     self.append_field(
-                            '%s_year_ssim' % date_name, [solr_date[:4]]
+                            '%s_year_ssim' % date_name, [solr_date.year]
                     )
                     self.append_field(
-                            'mods_dateAll_year_ssim', [solr_date[:4]]
+                            '%s_month_ssim' % date_name, [solr_date.month]
                     )
-                    self.data[date_name] = solr_date
+                    self.append_field(
+                            '%s_month_text_ssim' % date_name, [solr_date.month_text]
+                    )
+                    self.append_field(
+                            'mods_dateAll_year_ssim', [solr_date.year]
+                    )
+                    self.data[date_name] = str(solr_date)
 
                 # some special facets handling for dateOther
                 if date_name == 'dateOther':
