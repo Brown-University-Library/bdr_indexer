@@ -16,6 +16,47 @@ class XPathMapper(collections.namedtuple('XPathMapper', 'path field multiple')):
     def accepts_multiple_values(self):
         return self.multiple == 'm'
 
+MONTH_MAP = {
+    "01" : "January",
+    "02" : "February",
+    "03" : "March",
+    "04" : "April",
+    "05" : "May",
+    "06" : "June",
+    "07" : "July",
+    "08" : "August",
+    "09" : "September",
+    "10" : "October",
+    "11" : "November",
+    "12" : "December",
+}
+
+class SolrDate:
+    def __init__(self, date_string):
+        self.date_string = date_string
+
+    @property
+    def year(self):
+        return self.date_string[:4]
+
+    @property
+    def month(self):
+        return self.date_string[5:7]
+
+    @property
+    def month_text(self):
+        return MONTH_MAP.get(self.month)
+        pass
+
+    @property
+    def day(self):
+        return self.date_string[8:10]
+
+    def __str__(self):
+        return self.date_string
+
+    def __bool__(self):
+        return bool(self.date_string)
 
 class CommonIndexer:
     PREFIX = ""
@@ -110,7 +151,7 @@ class CommonIndexer:
                 solr_date_string = date + '-01-01T00:00:00Z'
         except ValueError:
             pass
-        return solr_date_string
+        return SolrDate(solr_date_string)
 
     def _slugify(self, text):
         # very similar functionality to django's slugify function
