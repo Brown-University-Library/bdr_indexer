@@ -22,7 +22,8 @@ from .indexers import (
 from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR
 from .logger import logger
 
-EXPIRE_SECONDS = 60
+FILES_EXPIRE_SECONDS = 60
+CONTENT_EXPIRE_SECONDS = 60*60
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 SOLR_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 STORAGE_SERVICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -70,15 +71,18 @@ class StorageObject:
 
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
-        r = requests.get(url)
-        if r.status_code == 404:
-            raise ObjectNotFound()
-        if r.status_code == 410:
-            raise ObjectDeleted()
-        if r.ok:
-            return r.json()
-        else:
-            raise StorageError(f'{r.status_code} {r.text}')
+        with Cache(CACHE_DIR) as file_cache:
+            response = file_cache.get(url, None)
+            if not response:
+                response= requests.get(url)
+                if response.status_code == 404:
+                    raise ObjectNotFound()
+                if response.status_code == 410:
+                    raise ObjectDeleted()
+                if not response.ok:
+                    raise StorageError(f'{response.status_code} {response.text}')
+                file_cache.set(url, response, expire=FILES_EXPIRE_SECONDS)
+            return response.json()
 
     @property
     def active_file_names(self):
@@ -105,7 +109,7 @@ class StorageObject:
     @property
     def rels_ext(self):
         if not self._rels_ext:
-            self._rels_ext = parse_rdf_xml_into_graph(self.get_file_contents(self.pid, 'RELS-EXT'))
+            self._rels_ext = parse_rdf_xml_into_graph(self.get_file_contents('RELS-EXT'))
         return self._rels_ext
 
     @property
@@ -125,24 +129,38 @@ class StorageObject:
             return str(objects[0]).split('/')[-1]
 
     @property
+    def parent_object(self):
+        return StorageObject(self.parent_pid) if self.parent_pid else None
+
+    @property
     def original_pid(self):
         objects = list(self.rels_ext.objects(predicate=relsext_ns.isDerivationOf))
         if objects:
             return str(objects[0]).split('/')[-1]
 
+    @property
+    def original_object(self):
+        return StorageObject(self.original_pid) if self.original_pid else None
+
+    @property
+    def ancestors(self):
+        return [self.original_object, self.parent_object]
+
+
     def _get_file_contents_url(self, pid, filename):
         return f'{STORAGE_SERVICE_ROOT}{pid}/files/{filename}/content/?{STORAGE_SERVICE_PARAM}'
 
-    def get_file_contents(self, pid, filename):
-        url = self._get_file_contents_url(pid, filename)
+    def get_file_contents(self, filename):
+        url = self._get_file_contents_url(self.pid, filename)
+        key = f"{self.modified}_{url}"
 
         with Cache(CACHE_DIR) as file_cache:
-            response = file_cache.get(url, None)
+            response = file_cache.get(key, None)
             if not response:
                 response = requests.get(url)
                 if not response.ok:
-                    raise StorageError(f'error getting {pid}/{filename} contents: {response.status_code} {response.text}')
-                file_cache.set(url, response, expire=EXPIRE_SECONDS)
+                    raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
+                file_cache.set(key, response, expire=CONTENT_EXPIRE_SECONDS)
             return response.content
 
     def get_file_contents_with_content_type(self, filename):
@@ -156,25 +174,11 @@ class StorageObject:
         return response
 
     def get_metadata_bytes_to_index(self, ds_id):
-        #get MODS/DWC/TEI from this object, or parent, or original, or return None
-        pid = None
-        if ds_id in self.active_file_profiles:
-            pid = self.pid
-        else:
-            #check derivation-of object first, assuming we want to pull from a media
-            #object for a stream before pulling from the parent of both of them
-            if self.original_pid and self._has_active_ds(self.original_pid, ds_id):
-                pid = self.original_pid
-            elif self.parent_pid and self._has_active_ds(self.parent_pid, ds_id):
-                pid = self.parent_pid
-        if pid:
-            return self.get_file_contents(pid, ds_id)
-
-    def _has_active_ds(self, pid, file_name):
-        obj = StorageObject(pid)
-        if file_name in obj.active_file_names:
-            return True
-        return False
+        if ds_id in self.active_file_names:
+            return self.get_file_contents(ds_id)
+        for ancestor in self.ancestors:
+            if ancestor and (ds_id in ancestor.active_file_names):
+                return ancestor.get_file_contents( ds_id)
 
 
 class SolrDocBuilder:
@@ -266,17 +270,17 @@ class SolrDocBuilder:
             )
 
         if 'irMetadata' in self.storage_object.active_file_names:
-            ir_data = IRIndexer(self.storage_object.get_file_contents(self.pid, 'irMetadata'), COLLECTION_URL, CACHE_DIR).index_data()
+            ir_data = IRIndexer(self.storage_object.get_file_contents('irMetadata'), COLLECTION_URL, CACHE_DIR).index_data()
             self._add_all_fields(doc, ir_data)
 
         if 'rightsMetadata' in self.storage_object.active_file_names:
             self._add_all_fields(
                 doc,
-                RightsIndexer(self.storage_object.get_file_contents(self.pid, 'rightsMetadata')).index_data()
+                RightsIndexer(self.storage_object.get_file_contents('rightsMetadata')).index_data()
             )
 
         if 'FITS' in self.storage_object.active_file_names:
-            fits_contents = self.storage_object.get_file_contents(self.pid, 'FITS')
+            fits_contents = self.storage_object.get_file_contents('FITS')
             self._add_all_fields(doc,
                 FitsIndexer(fits_contents).index_data()
             )
