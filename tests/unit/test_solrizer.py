@@ -6,9 +6,10 @@ import unittest
 from unittest.mock import patch
 import responses
 from rdflib import Graph, URIRef
+from diskcache import Cache
 from eulfedora.rdfns import model as model_ns, relsext as relsext_ns
 from bdrxml import irMetadata, rights, mods, darwincore
-from bdr_solrizer import solrizer, solrdocbuilder
+from bdr_solrizer import solrizer, solrdocbuilder, settings
 from . import test_data
 
 
@@ -30,6 +31,10 @@ class MockStreamingResponse:
 
 
 class TestSolrizer(unittest.TestCase):
+    def setUp(self):
+        with Cache(settings.CACHE_DIR) as file_cache:
+            file_cache.clear()
+
 
     @responses.activate
     def test_solrize(self):
@@ -171,7 +176,7 @@ class TestSolrizer(unittest.TestCase):
         with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
             with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
                 solrizer.solrize('testsuite:1')
-            actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+                actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
             self.assertEqual(actual_solr_doc['add']['doc']['primary_title'], 'parent title')
 
     @responses.activate
