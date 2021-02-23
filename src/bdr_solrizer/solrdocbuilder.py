@@ -6,6 +6,7 @@ import zipfile
 import redis
 import requests
 from lxml import etree
+from diskcache import Cache
 from eulfedora.rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
@@ -21,6 +22,7 @@ from .indexers import (
 from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR
 from .logger import logger
 
+EXPIRE_SECONDS = 60
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 SOLR_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 STORAGE_SERVICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -133,11 +135,15 @@ class StorageObject:
 
     def get_file_contents(self, pid, filename):
         url = self._get_file_contents_url(pid, filename)
-        response = requests.get(url)
-        if response.ok:
+
+        with Cache(CACHE_DIR) as file_cache:
+            response = file_cache.get(url, None)
+            if not response:
+                response = requests.get(url)
+                if not response.ok:
+                    raise StorageError(f'error getting {pid}/{filename} contents: {response.status_code} {response.text}')
+                file_cache.set(url, response, expire=EXPIRE_SECONDS)
             return response.content
-        else:
-            raise StorageError(f'error getting {pid}/{filename} contents: {response.status_code} {response.text}')
 
     def get_file_contents_with_content_type(self, filename):
         url = self._get_file_contents_url(self.pid, filename)
@@ -254,7 +260,8 @@ class SolrDocBuilder:
         self._add_all_fields(doc, storage_fields)
 
         if 'RELS-EXT' in self.storage_object.active_file_names:
-            self._add_all_fields(doc, 
+            self._add_all_fields(
+                doc,
                 RelsExtIndexer(self.storage_object.rels_ext).index_data()
             )
 
@@ -263,7 +270,8 @@ class SolrDocBuilder:
             self._add_all_fields(doc, ir_data)
 
         if 'rightsMetadata' in self.storage_object.active_file_names:
-            self._add_all_fields(doc, 
+            self._add_all_fields(
+                doc,
                 RightsIndexer(self.storage_object.get_file_contents(self.pid, 'rightsMetadata')).index_data()
             )
 
