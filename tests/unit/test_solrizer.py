@@ -12,6 +12,8 @@ from bdrxml import irMetadata, rights, mods, darwincore
 from bdr_solrizer import solrizer, solrdocbuilder, settings
 from . import test_data
 
+from bdr_solrizer import __version__ as vsolrizer
+print(f"running tests for bdr_solrizer, version: {vsolrizer}")
 
 class MockStreamingResponse:
     ok = True
