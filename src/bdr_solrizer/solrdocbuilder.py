@@ -22,7 +22,7 @@ from .indexers import (
 from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR
 from .logger import logger
 
-FILES_EXPIRE_SECONDS = 60
+FILES_EXPIRE_SECONDS = 60*5
 CONTENT_EXPIRE_SECONDS = 60*60
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 SOLR_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -62,27 +62,32 @@ def _process_extracted_text(data, content_type):
 
 class StorageObject:
 
-    def __init__(self, pid):
+    def __init__(self, pid, use_object_cache=False):
         self.pid = pid
         self._active_file_names = None
         self._active_file_profiles = None
-        self.files_response = self._get_files_response()
+        self.use_cache = use_object_cache
         self._rels_ext = None
+        self.files_response = self._get_files_response()
+
+    def _get_object_or_error(self, url):
+        response= requests.get(url)
+        if response.status_code == 404:
+            raise ObjectNotFound()
+        if response.status_code == 410:
+            raise ObjectDeleted()
+        if not response.ok:
+            raise StorageError(f'{response.status_code} {response.text}')
+        return response
 
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
-        with Cache(CACHE_DIR) as file_cache:
-            response = file_cache.get(url, None)
+        with Cache(CACHE_DIR) as object_cache:
+            response = object_cache.get(url, None) if self.use_cache else None
             if not response:
-                response= requests.get(url)
-                if response.status_code == 404:
-                    raise ObjectNotFound()
-                if response.status_code == 410:
-                    raise ObjectDeleted()
-                if not response.ok:
-                    raise StorageError(f'{response.status_code} {response.text}')
-                file_cache.set(url, response, expire=FILES_EXPIRE_SECONDS)
-            return response.json()
+                response = self._get_object_or_error(url)
+                object_cache.set(url, response, expire=FILES_EXPIRE_SECONDS)
+        return response.json()
 
     @property
     def active_file_names(self):
@@ -130,7 +135,7 @@ class StorageObject:
 
     @property
     def parent_object(self):
-        return StorageObject(self.parent_pid) if self.parent_pid else None
+        return StorageObject(self.parent_pid, use_object_cache=True) if self.parent_pid else None
 
     @property
     def original_pid(self):
@@ -154,13 +159,13 @@ class StorageObject:
         url = self._get_file_contents_url(self.pid, filename)
         key = f"{self.modified}_{url}"
 
-        with Cache(CACHE_DIR) as file_cache:
-            response = file_cache.get(key, None)
+        with Cache(CACHE_DIR) as content_cache:
+            response = content_cache.get(key, None)
             if not response:
                 response = requests.get(url)
                 if not response.ok:
                     raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
-                file_cache.set(key, response, expire=CONTENT_EXPIRE_SECONDS)
+                content_cache.set(key, response, expire=CONTENT_EXPIRE_SECONDS)
             return response.content
 
     def get_file_contents_with_content_type(self, filename):
