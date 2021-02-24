@@ -66,7 +66,7 @@ class StorageObject:
         self.pid = pid
         self._active_file_names = None
         self._active_file_profiles = None
-        self.use_cache = use_object_cache
+        self.use_object_cache = use_object_cache
         self._rels_ext = None
         self.files_response = self._get_files_response()
 
@@ -83,7 +83,7 @@ class StorageObject:
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
         with Cache(CACHE_DIR) as object_cache:
-            response = object_cache.get(url, None) if self.use_cache else None
+            response = object_cache.get(url, None) if self.use_object_cache else None
             if not response:
                 response = self._get_object_or_error(url)
                 object_cache.set(url, response, expire=FILES_EXPIRE_SECONDS)
@@ -145,7 +145,7 @@ class StorageObject:
 
     @property
     def original_object(self):
-        return StorageObject(self.original_pid) if self.original_pid else None
+        return StorageObject(self.original_pid, use_object_cache=True) if self.original_pid else None
 
     @property
     def ancestors(self):
