@@ -7,6 +7,7 @@ import redis
 import requests
 from lxml import etree
 from diskcache import Cache
+from rdflib import Graph
 from eulfedora.rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
@@ -36,6 +37,9 @@ class ObjectNotFound(RuntimeError):
     pass
 
 class ObjectDeleted(RuntimeError):
+    pass
+
+class FileNotFound(RuntimeError):
     pass
 
 class StorageError(RuntimeError):
@@ -114,7 +118,11 @@ class StorageObject:
     @property
     def rels_ext(self):
         if not self._rels_ext:
-            self._rels_ext = parse_rdf_xml_into_graph(self.get_file_contents('RELS-EXT'))
+            try:
+                self._rels_ext = parse_rdf_xml_into_graph(self.get_file_contents('RELS-EXT'))
+            except FileNotFoundError:
+                logger.warning(f'{self.pid} has no RELS-EXT')
+                self._rels_ext = Graph()
         return self._rels_ext
 
     @property
@@ -164,7 +172,10 @@ class StorageObject:
             if not response:
                 response = requests.get(url)
                 if not response.ok:
-                    raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
+                    if response.status_code == 404:
+                        raise FileNotFoundError(f'{self.pid}/{filename} not found')
+                    else:
+                        raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
                 content_cache.set(key, response, expire=CONTENT_EXPIRE_SECONDS)
             return response.content
 

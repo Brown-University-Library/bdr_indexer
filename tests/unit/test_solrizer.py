@@ -31,10 +31,10 @@ class MockStreamingResponse:
 
 
 class TestSolrizer(unittest.TestCase):
+
     def setUp(self):
         with Cache(settings.CACHE_DIR) as file_cache:
             file_cache.clear()
-
 
     @responses.activate
     def test_solrize(self):
@@ -192,6 +192,30 @@ class TestSolrizer(unittest.TestCase):
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
             solrizer.solrize('testsuite:1')
         post_to_solr.assert_called_once_with('{"delete": {"id": "testsuite:1"}}', 'delete')
+
+    @responses.activate
+    def test_solrize_rels_ext_not_found(self):
+        files_response = {
+                'object': {'created': '2020-11-19T20:30:43.73776Z', 'lastModified': '2020-11-25T20:30:43.73776Z'},
+                'files': {
+                    'rightsMetadata': {'state': 'A', 'mimetype': 'text/xml', 'size': 40, 'checksum': 'asdf', 'checksumType': 'MD5', 'lastModified': '2020-11-25T20:30:43.73776Z'},
+                },
+                'storage': 'ocfl',
+            }
+        responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/',
+                      body=json.dumps(files_response),
+                      status=200,
+                      content_type='application/json'
+                      )
+        responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/rightsMetadata/content/',
+                      body=rights.make_rights().serialize(),
+                      status=200,
+                      content_type='text/xml'
+                      )
+        responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/RELS-EXT/content/', status=404)
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize('testsuite:1')
 
     @responses.activate
     def test_index_zip(self):
