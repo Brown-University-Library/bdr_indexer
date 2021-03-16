@@ -29,6 +29,9 @@ class StorageIndexer:
         ds_info = {}
         object_size = 0
         for ds_id, ds_profile in self.storage_object.active_file_profiles.items():
+            #we don't index AUDIT in the list of datastreams
+            if ds_id == 'AUDIT':
+                continue
             ds_ids.append(ds_id)
             ds_info[ds_id] = {
                 'mimeType': ds_profile['mimetype'],
@@ -37,7 +40,7 @@ class StorageIndexer:
                 'checksumType': ds_profile['checksumType'],
                 'lastModified': ds_profile['lastModified'],
             }
-            #Note: only adding the size of Active datastreams for now
+            #Note: only adding the size of Active datastreams (excluding AUDIT) for now
             ds_size = int(ds_profile['size'])
             if ds_size > 0:
                 object_size += ds_size
