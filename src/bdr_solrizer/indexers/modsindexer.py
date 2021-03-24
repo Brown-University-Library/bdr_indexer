@@ -385,25 +385,25 @@ class ModsIndexer(CommonIndexer):
     def _part_extent(self, extent):
         unit_label = ''
         if extent.unit:
-            unit_label = '{}_'.format(extent.unit)
+            unit_label = f'{extent.unit}_'
         if extent.total:
             self.append_field(
-                'mods_part_extent_{}total_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}total_ssim',
                 extent.total
             )
         if extent.start:
             self.append_field(
-                'mods_part_extent_{}start_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}start_ssim',
                 extent.start
             )
         if extent.end:
             self.append_field(
-                'mods_part_extent_{}end_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}end_ssim',
                 extent.end
             )
         if extent.start and extent.end:
             self.append_field(
-                'mods_part_extent_{}ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}ssim',
                 '-'.join([extent.start, extent.end])
             )
 
@@ -425,7 +425,7 @@ class ModsIndexer(CommonIndexer):
         if detail.caption and detail.number:
             formatted_number = self._format_number(detail.number)
             if detail.type:
-                field = 'mods_part_detail_{}_ssim'.format(detail.type)
+                field = f'mods_part_detail_{detail_type}_ssim'
                 self.append_field(field,' '.join([detail.caption, formatted_number]))
 
             full_detail = ' '.join(
@@ -493,9 +493,10 @@ class ModsIndexer(CommonIndexer):
             joined_subelements = self._joiner(subject_subelements)
             self.append_field('mods_subject_joined_ssim', joined_subelements)
             if sub.authority:
-                self.append_field('mods_subject_joined_{}_ssim'.format(
-                    self._slugify(sub.authority)
-                    ), joined_subelements
+                slug_authority = self._slugify(sub.authority)
+                self.append_field(
+                    f'mods_subject_joined_{slug_authority}_ssim',
+                    joined_subelements
                 )
         return self
 
