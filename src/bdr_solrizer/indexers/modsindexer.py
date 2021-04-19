@@ -732,32 +732,43 @@ class ModsIndexer(CommonIndexer):
     def _related_creators(self, indexed):
             return indexed.get('mods_role_creator_ssim', [])
 
-    def _related_item_constituent_index(self, related_item):
-            MI = ModsIndexer(related_item.serialize())
-            indexed = MI.index_data()
-            return {
-                    'display': self._related_item_constituent_display(indexed),
-                    'creators': self._related_creators(indexed),
-            }
+    def _related_item_constituent_index(self, indexed):
+        # MI = ModsIndexer(related_item.serialize())
+        # indexed = MI.index_data()
+        return {
+            'display': self._related_item_constituent_display(indexed),
+            'creators': self._related_creators(indexed),
+            'genre': indexed.get('mods_genre_aat_ssim', [])
+        }
 
     def index_related_items_recursive(self):
         if hasattr(self.mods, 'related_items'):
             constituents = (item for item in self.mods.related_items
                             if item.type == "constituent"
                             )
-            for r in constituents:
-                constituent_index = self._related_item_constituent_index(r)
-                self.append_field(
-                        'mods_constituent_display_ssim',
-                        constituent_index['display']
+            constituent_indices = (
+                ModsIndexer(constituent.serialize()).index_data()
+                for constituent in constituents
+            )
+            for constituent_data in constituent_indices:
+                constituent_index = self._related_item_constituent_index(
+                    constituent_data
                 )
                 self.append_field(
-                        'mods_constituent_creator_ssim',
-                        constituent_index['creators']
+                    'mods_constituent_genre_ssim',
+                    constituent_index['genre']
                 )
                 self.append_field(
-                        'mods_constituent_creator_tim',
-                        constituent_index['creators']
+                    'mods_constituent_display_ssim',
+                    constituent_index['display']
+                )
+                self.append_field(
+                    'mods_constituent_creator_ssim',
+                    constituent_index['creators']
+                )
+                self.append_field(
+                    'mods_constituent_creator_tim',
+                    constituent_index['creators']
                 )
         return self
 

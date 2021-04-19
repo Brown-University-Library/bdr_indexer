@@ -557,16 +557,23 @@ class TestModsIndexer(unittest.TestCase):
         self.assertCountEqual(
             index_data['mods_constituent_display_ssim'],
             [
-              u"The Abbé Loisy (Dujardiné, Ed.): 18-21",
-              u"Advertisements: B-Adv32",
-              u"A Prayer for All True Lovers (Rauschenbusch, Walter): 713-713",
+              "The Abbé Loisy (Dujardiné, Ed.): 18-21",
+              "Advertisements: B-Adv32",
+              "A Prayer for All True Lovers (Rauschenbusch, Walter): 713-713",
             ]
         )
         self.assertCountEqual(
             index_data['mods_constituent_creator_ssim'],
             [
-              u"Dujardiné, Ed.",
-              u"Rauschenbusch, Walter",
+              "Dujardiné, Ed.",
+              "Rauschenbusch, Walter",
+            ]
+        )
+        self.assertCountEqual(
+            index_data['mods_constituent_genre_ssim'],
+            [
+              "articles",
+              "advertisements",
             ]
         )
 
