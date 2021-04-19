@@ -733,8 +733,6 @@ class ModsIndexer(CommonIndexer):
             return indexed.get('mods_role_creator_ssim', [])
 
     def _related_item_constituent_index(self, indexed):
-        # MI = ModsIndexer(related_item.serialize())
-        # indexed = MI.index_data()
         return {
             'display': self._related_item_constituent_display(indexed),
             'creators': self._related_creators(indexed),
