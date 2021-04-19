@@ -1,3 +1,4 @@
+import json
 import unittest
 from eulxml.xmlmap  import load_xmlobject_from_string
 from bdrxml import mods
@@ -557,25 +558,44 @@ class TestModsIndexer(unittest.TestCase):
         self.assertCountEqual(
             index_data['mods_constituent_display_ssim'],
             [
-              "The Abbé Loisy (Dujardiné, Ed.): 18-21",
-              "Advertisements: B-Adv32",
-              "A Prayer for All True Lovers (Rauschenbusch, Walter): 713-713",
+                "The Abbé Loisy (Dujardiné, Ed.): 18-21",
+                "Advertisements: B-Adv32",
+                "A Prayer for All True Lovers (Rauschenbusch, Walter): 713-713",
             ]
         )
         self.assertCountEqual(
             index_data['mods_constituent_creator_ssim'],
             [
-              "Dujardiné, Ed.",
-              "Rauschenbusch, Walter",
+                "Dujardiné, Ed.",
+                "Rauschenbusch, Walter",
             ]
         )
         self.assertCountEqual(
             index_data['mods_constituent_genre_ssim'],
             [
-              "articles",
-              "advertisements",
+                "articles",
+                "advertisements",
             ]
         )
+        constituent_data= index_data['mods_constituent_data_ssim']
+        self.assertEqual(
+            len(constituent_data),
+            3
+        )
+        constituent_2 = json.loads(constituent_data[2])
+        target_data = {
+            'title': 'The Abbé Loisy',
+            'display':  "The Abbé Loisy (Dujardiné, Ed.): 18-21",
+            'creators': ["Dujardiné, Ed."],
+            'genre': "articles",
+            'pages_start' : "18",
+            'pages_end' : "21",
+        }
+        for k, val in constituent_2.items():
+            self.assertEqual(
+                val,
+                target_data[k]
+            )
 
     def test_related_index(self):
         sample_mods = '''
