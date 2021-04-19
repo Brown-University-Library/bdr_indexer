@@ -385,25 +385,25 @@ class ModsIndexer(CommonIndexer):
     def _part_extent(self, extent):
         unit_label = ''
         if extent.unit:
-            unit_label = '{}_'.format(extent.unit)
+            unit_label = f'{extent.unit}_'
         if extent.total:
             self.append_field(
-                'mods_part_extent_{}total_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}total_ssim',
                 extent.total
             )
         if extent.start:
             self.append_field(
-                'mods_part_extent_{}start_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}start_ssim',
                 extent.start
             )
         if extent.end:
             self.append_field(
-                'mods_part_extent_{}end_ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}end_ssim',
                 extent.end
             )
         if extent.start and extent.end:
             self.append_field(
-                'mods_part_extent_{}ssim'.format(unit_label),
+                f'mods_part_extent_{unit_label}ssim',
                 '-'.join([extent.start, extent.end])
             )
 
@@ -425,7 +425,7 @@ class ModsIndexer(CommonIndexer):
         if detail.caption and detail.number:
             formatted_number = self._format_number(detail.number)
             if detail.type:
-                field = 'mods_part_detail_{}_ssim'.format(detail.type)
+                field = f'mods_part_detail_{detail_type}_ssim'
                 self.append_field(field,' '.join([detail.caption, formatted_number]))
 
             full_detail = ' '.join(
@@ -493,9 +493,10 @@ class ModsIndexer(CommonIndexer):
             joined_subelements = self._joiner(subject_subelements)
             self.append_field('mods_subject_joined_ssim', joined_subelements)
             if sub.authority:
-                self.append_field('mods_subject_joined_{}_ssim'.format(
-                    self._slugify(sub.authority)
-                    ), joined_subelements
+                slug_authority = self._slugify(sub.authority)
+                self.append_field(
+                    f'mods_subject_joined_{slug_authority}_ssim',
+                    joined_subelements
                 )
         return self
 
@@ -731,32 +732,41 @@ class ModsIndexer(CommonIndexer):
     def _related_creators(self, indexed):
             return indexed.get('mods_role_creator_ssim', [])
 
-    def _related_item_constituent_index(self, related_item):
-            MI = ModsIndexer(related_item.serialize())
-            indexed = MI.index_data()
-            return {
-                    'display': self._related_item_constituent_display(indexed),
-                    'creators': self._related_creators(indexed),
-            }
+    def _related_item_constituent_index(self, indexed):
+        return {
+            'display': self._related_item_constituent_display(indexed),
+            'creators': self._related_creators(indexed),
+            'genre': indexed.get('mods_genre_aat_ssim', [])
+        }
 
     def index_related_items_recursive(self):
         if hasattr(self.mods, 'related_items'):
             constituents = (item for item in self.mods.related_items
                             if item.type == "constituent"
                             )
-            for r in constituents:
-                constituent_index = self._related_item_constituent_index(r)
-                self.append_field(
-                        'mods_constituent_display_ssim',
-                        constituent_index['display']
+            constituent_indices = (
+                ModsIndexer(constituent.serialize()).index_data()
+                for constituent in constituents
+            )
+            for constituent_data in constituent_indices:
+                constituent_index = self._related_item_constituent_index(
+                    constituent_data
                 )
                 self.append_field(
-                        'mods_constituent_creator_ssim',
-                        constituent_index['creators']
+                    'mods_constituent_genre_ssim',
+                    constituent_index['genre']
                 )
                 self.append_field(
-                        'mods_constituent_creator_tim',
-                        constituent_index['creators']
+                    'mods_constituent_display_ssim',
+                    constituent_index['display']
+                )
+                self.append_field(
+                    'mods_constituent_creator_ssim',
+                    constituent_index['creators']
+                )
+                self.append_field(
+                    'mods_constituent_creator_tim',
+                    constituent_index['creators']
                 )
         return self
 
