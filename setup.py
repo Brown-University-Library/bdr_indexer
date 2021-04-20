@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="bdr_solrizer",
-    version='4.6',
+    version='4.7',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     scripts=['bin/queue_solrize'],
