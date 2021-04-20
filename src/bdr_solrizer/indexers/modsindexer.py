@@ -664,43 +664,32 @@ class ModsIndexer(CommonIndexer):
                 dates = [np.text for np in name.name_parts
                          if np.type == 'date']
                 if nameparts and nameparts[0]:
-                    self.append_field('name', [nameparts[0]])
+                    namepart = nameparts[0]
+                    self.append_field('name', namepart)
+                    role_display = ''
+                    date_display = ''
                     if dates and dates[0]:
-                        date = ', %s' % dates[0]
-                    else:
-                        date = ''
+                        date_display = f', {dates[0]}'
                     if roles and roles[0]:
+                        role = roles[0]
+                        role_display = f' ({role})'
+                        self.append_field('mods_role_ssim', role)
                         self.append_field(
-                                'contributor_display',
-                                ['%s%s (%s)' % (nameparts[0], date, roles[0])]
+                            f'mods_role_{self._slugify(role)}_ssim',
+                            namepart
                         )
-                        self.append_field('mods_role_ssim', [roles[0]])
-                        self.append_field(
-                                'mods_role_%s_ssim' % self._slugify(roles[0]),
-                                [nameparts[0]]
-                        )
-                        if roles[0].endswith(u' place'):
-                            self.append_field(
-                                    'mods_name_place_ssim',
-                                    [nameparts[0]]
-                            )
+                        if role.endswith(u' place'):
+                            self.append_field('mods_name_place_ssim', namepart)
                         else:
-                            self.append_field(
-                                    'mods_name_nonplace_ssim',
-                                    [nameparts[0]]
-                            )
-                        if roles[0] == 'creator':
-                            self.append_field('creator', [nameparts[0]])
+                            self.append_field('mods_name_nonplace_ssim', namepart)
+                        if role == 'creator':
+                            self.append_field('creator', namepart)
                         else:
-                            self.append_field('contributor', [nameparts[0]])
+                            self.append_field('contributor', namepart)
                     else:
-                        self.append_field(
-                                'mods_name_nonplace_ssim', [nameparts[0]]
-                        )
-                        self.append_field(
-                                'contributor_display',
-                                ['%s%s' % (nameparts[0], date)]
-                        )
+                        self.append_field('mods_name_nonplace_ssim', namepart)
+                    display_form = name.display_form or f'{namepart}{date_display}{role_display}'
+                    self.append_field('contributor_display', display_form)
             return self
         except Exception as e:
             raise Exception(f'names: {e}')
