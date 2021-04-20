@@ -125,6 +125,10 @@ class TestModsIndexer(unittest.TestCase):
               <mods:roleTerm type="text">distribution place</mods:roleTerm>
             </mods:role>
           </mods:name>
+          <mods:name type="personal">
+            <mods:namePart>Generic, Name</mods:namePart>
+            <mods:displayForm>Name Generic '21</mods:displayForm>
+          </mods:name>
         '''
     def test_contributor_display_index(self):
         indexer = self.indexer_for_mods_string(self.SAMPLE_MODS_NAMES)
@@ -136,7 +140,8 @@ class TestModsIndexer(unittest.TestCase):
                     'Baker, Jim, 1718-1762 (director)',
                     'Wilson, Jane',
                     'Brown University. English (sponsor)',
-                    'Providence, RI (distribution place)'
+                    'Providence, RI (distribution place)',
+                    "Name Generic '21"
                 ]
         )
 
@@ -352,7 +357,8 @@ class TestModsIndexer(unittest.TestCase):
                     'Baker, Jim',
                     'Wilson, Jane',
                     'Brown University. English',
-                    'Providence, RI'
+                    'Providence, RI',
+                    'Generic, Name'
                 ]
         )
         self.assertEqual(
@@ -364,6 +370,7 @@ class TestModsIndexer(unittest.TestCase):
                 [
                     'Baker, Jim',
                     'Brown University. English',
+                    'Generic, Name',
                     'Smith, Tom',
                     'Wilson, Jane'
                 ]
