@@ -1,3 +1,4 @@
+import json
 import re
 import inflection
 import roman
@@ -734,9 +735,24 @@ class ModsIndexer(CommonIndexer):
 
     def _related_item_constituent_index(self, indexed):
         return {
+            'title': next(
+                iter(indexed.get('mods_title_full_tsim', [])),
+                ''
+            ),
             'display': self._related_item_constituent_display(indexed),
             'creators': self._related_creators(indexed),
-            'genre': indexed.get('mods_genre_aat_ssim', [])
+            'genre': next(
+                iter(indexed.get('mods_genre_aat_ssim', [])),
+                ''
+            ),
+            'pages_start' : next(
+                iter(indexed.get("mods_part_extent_pages_start_ssim", [])),
+                ''
+            ),
+            'pages_end' : next(
+                iter(indexed.get("mods_part_extent_pages_end_ssim", [])),
+                ''
+            ),
         }
 
     def index_related_items_recursive(self):
@@ -752,6 +768,10 @@ class ModsIndexer(CommonIndexer):
                 constituent_index = self._related_item_constituent_index(
                     constituent_data
                 )
+                self.append_field(
+                    'mods_constituent_data_ssim',
+                    json.dumps(constituent_index)
+                ),
                 self.append_field(
                     'mods_constituent_genre_ssim',
                     constituent_index['genre']
