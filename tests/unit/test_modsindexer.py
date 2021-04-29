@@ -206,9 +206,10 @@ class TestModsIndexer(unittest.TestCase):
         self.assertTrue(indexer.has_invalid_date())
 
     def test_genre_index(self):
-        sample_mods = u'''
+        sample_mods = '''
           <mods:genre authority="aat"></mods:genre>
           <mods:genre authority="aat">aat theses</mods:genre>
+          <mods:genre authority="aat" type="object type">sherd</mods:genre>
           <mods:genre authority="bdr">bdr theses</mods:genre>
           <mods:genre authority="local">local theses</mods:genre>
           <mods:genre authority="fast"
@@ -217,10 +218,11 @@ class TestModsIndexer(unittest.TestCase):
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
         index_data = indexer.index_genres().data
-        self.assertEqual(index_data['genre'], [u'aat theses', u'bdr theses', u'local theses', u'123'])
-        self.assertEqual(index_data['mods_genre_aat_ssim'], [u'aat theses'])
-        self.assertEqual(index_data['mods_genre_bdr_ssim'], [u'bdr theses'])
-        self.assertEqual(index_data['mods_genre_local_ssim'], [u'local theses'])
+        self.assertEqual(index_data['genre'], ['aat theses', 'sherd','bdr theses', 'local theses', '123'])
+        self.assertEqual(index_data['mods_genre_aat_ssim'], ['aat theses', 'sherd'])
+        self.assertEqual(index_data['mods_genre_object_type_ssim'], ['sherd'])
+        self.assertEqual(index_data['mods_genre_bdr_ssim'], ['bdr theses'])
+        self.assertEqual(index_data['mods_genre_local_ssim'], ['local theses'])
 
     def test_identifiers_index(self):
         sample_mods = u'''

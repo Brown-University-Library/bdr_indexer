@@ -614,6 +614,10 @@ class ModsIndexer(CommonIndexer):
                     slug_authority = self._slugify(genre.authority)
                     genre_field_name = 'mods_genre_%s_ssim' % slug_authority
                     self.append_field(genre_field_name, [genre.text])
+                if genre.type:
+                    slug_type = self._slugify(genre.type)
+                    genre_field_name = 'mods_genre_%s_ssim' % slug_type
+                    self.append_field(genre_field_name, [genre.text])
         return self
 
     IDENTIFIER_MAP = [
