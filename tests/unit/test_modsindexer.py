@@ -215,11 +215,14 @@ class TestModsIndexer(unittest.TestCase):
           <mods:genre authority="fast"
                 authorityURI="http://fast.com"
                 valueURI="http://fast.com/123">123</mods:genre>
+        <mods:genre type="culture/nationality"
+            authority="aat" valueURI="http://vocab.getty.edu/page/aat/300020533">Roman (ancient Italian culture or period)</mods:genre>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
         index_data = indexer.index_genres().data
-        self.assertEqual(index_data['genre'], ['aat theses', 'sherd','bdr theses', 'local theses', '123'])
-        self.assertEqual(index_data['mods_genre_aat_ssim'], ['aat theses', 'sherd'])
+        self.assertEqual(index_data['mods_genre_culture_nationality_ssim'], ['Roman (ancient Italian culture or period)'])
+        self.assertEqual(index_data['genre'], ['aat theses', 'sherd','bdr theses', 'local theses', '123', 'Roman (ancient Italian culture or period)'])
+        self.assertEqual(index_data['mods_genre_aat_ssim'], ['aat theses', 'sherd', 'Roman (ancient Italian culture or period)'])
         self.assertEqual(index_data['mods_genre_object_type_ssim'], ['sherd'])
         self.assertEqual(index_data['mods_genre_bdr_ssim'], ['bdr theses'])
         self.assertEqual(index_data['mods_genre_local_ssim'], ['local theses'])

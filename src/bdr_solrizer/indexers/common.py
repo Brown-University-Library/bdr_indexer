@@ -155,6 +155,8 @@ class CommonIndexer:
     def _slugify(self, text):
         # very similar functionality to django's slugify function
         text = text.strip().lower().replace(' ', '_')
+        text = text.replace('\\', '_')
+        text = text.replace('/', '_')
         text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
         text = NON_WORD_CHAR_PATTERN.sub('', text)
         return text
