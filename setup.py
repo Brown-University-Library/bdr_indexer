@@ -7,7 +7,7 @@ setup(
     package_dir={'': 'src'},
     scripts=['bin/queue_solrize'],
     install_requires=[
-        'bdrxml>=1.0',
+        'bdrxml>=1.2',
         'eulfedora>=1.7.2',
         'requests>=2.11.0',
         'redis>=3.0.1',

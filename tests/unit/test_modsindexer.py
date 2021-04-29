@@ -206,21 +206,26 @@ class TestModsIndexer(unittest.TestCase):
         self.assertTrue(indexer.has_invalid_date())
 
     def test_genre_index(self):
-        sample_mods = u'''
+        sample_mods = '''
           <mods:genre authority="aat"></mods:genre>
           <mods:genre authority="aat">aat theses</mods:genre>
+          <mods:genre authority="aat" type="object type">sherd</mods:genre>
           <mods:genre authority="bdr">bdr theses</mods:genre>
           <mods:genre authority="local">local theses</mods:genre>
           <mods:genre authority="fast"
                 authorityURI="http://fast.com"
                 valueURI="http://fast.com/123">123</mods:genre>
+        <mods:genre type="culture/nationality"
+            authority="aat" valueURI="http://vocab.getty.edu/page/aat/300020533">Roman (ancient Italian culture or period)</mods:genre>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
         index_data = indexer.index_genres().data
-        self.assertEqual(index_data['genre'], [u'aat theses', u'bdr theses', u'local theses', u'123'])
-        self.assertEqual(index_data['mods_genre_aat_ssim'], [u'aat theses'])
-        self.assertEqual(index_data['mods_genre_bdr_ssim'], [u'bdr theses'])
-        self.assertEqual(index_data['mods_genre_local_ssim'], [u'local theses'])
+        self.assertEqual(index_data['mods_genre_culture_nationality_ssim'], ['Roman (ancient Italian culture or period)'])
+        self.assertEqual(index_data['genre'], ['aat theses', 'sherd','bdr theses', 'local theses', '123', 'Roman (ancient Italian culture or period)'])
+        self.assertEqual(index_data['mods_genre_aat_ssim'], ['aat theses', 'sherd', 'Roman (ancient Italian culture or period)'])
+        self.assertEqual(index_data['mods_genre_object_type_ssim'], ['sherd'])
+        self.assertEqual(index_data['mods_genre_bdr_ssim'], ['bdr theses'])
+        self.assertEqual(index_data['mods_genre_local_ssim'], ['local theses'])
 
     def test_identifiers_index(self):
         sample_mods = u'''
@@ -263,6 +268,7 @@ class TestModsIndexer(unittest.TestCase):
               <mods:copyInformation>
                 <mods:note>location note</mods:note>
                 <mods:note type="box name">BOX NAME</mods:note>
+                <mods:subLocation>Old Department Collection</mods:subLocation>
               </mods:copyInformation>
             </mods:holdingSimple>
           </mods:location>
@@ -277,6 +283,10 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(
                 index_data['mods_location_copy_info_note_box_name_ssim'],
                 ['BOX NAME']
+        )
+        self.assertEqual(
+                index_data['mods_location_copy_info_sublocation_ssim'],
+                ['Old Department Collection']
         )
 
     SAMPLE_MODS_SUBJECT = '''

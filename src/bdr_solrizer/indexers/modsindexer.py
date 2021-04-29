@@ -250,6 +250,12 @@ class ModsIndexer(CommonIndexer):
                 )
             if location.holding_simple:
                 for copy in location.holding_simple.copy_information:
+                    for sublocation in copy.sublocations:
+                        if sublocation.text:
+                            self.append_field(
+                                'mods_location_copy_info_sublocation_ssim',
+                                [sublocation.text]
+                            )
                     for note in copy.notes:
                         note_text = self._spaceless_text(note.text.strip())
                         if note.type:
@@ -613,6 +619,10 @@ class ModsIndexer(CommonIndexer):
                 if genre.authority:
                     slug_authority = self._slugify(genre.authority)
                     genre_field_name = 'mods_genre_%s_ssim' % slug_authority
+                    self.append_field(genre_field_name, [genre.text])
+                if genre.type:
+                    slug_type = self._slugify(genre.type)
+                    genre_field_name = 'mods_genre_%s_ssim' % slug_type
                     self.append_field(genre_field_name, [genre.text])
         return self
 
