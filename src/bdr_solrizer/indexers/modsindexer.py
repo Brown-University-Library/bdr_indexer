@@ -250,6 +250,12 @@ class ModsIndexer(CommonIndexer):
                 )
             if location.holding_simple:
                 for copy in location.holding_simple.copy_information:
+                    for sublocation in copy.sublocations:
+                        if sublocation.text:
+                            self.append_field(
+                                'mods_location_copy_info_sublocation_ssim',
+                                [sublocation.text]
+                            )
                     for note in copy.notes:
                         note_text = self._spaceless_text(note.text.strip())
                         if note.type:

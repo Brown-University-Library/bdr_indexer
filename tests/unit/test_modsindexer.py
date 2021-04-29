@@ -265,6 +265,7 @@ class TestModsIndexer(unittest.TestCase):
               <mods:copyInformation>
                 <mods:note>location note</mods:note>
                 <mods:note type="box name">BOX NAME</mods:note>
+                <mods:subLocation>Old Department Collection</mods:subLocation>
               </mods:copyInformation>
             </mods:holdingSimple>
           </mods:location>
@@ -279,6 +280,10 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(
                 index_data['mods_location_copy_info_note_box_name_ssim'],
                 ['BOX NAME']
+        )
+        self.assertEqual(
+                index_data['mods_location_copy_info_sublocation_ssim'],
+                ['Old Department Collection']
         )
 
     SAMPLE_MODS_SUBJECT = '''
