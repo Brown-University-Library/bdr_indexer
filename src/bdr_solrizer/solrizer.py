@@ -121,4 +121,3 @@ def index_zip(pid):
         import traceback
         logger.error('index zip job failure for %s:  %s' % (pid, traceback.format_exc()))
         raise Exception('%s index zip (%s) error: %s' % (datetime.now(), pid, repr(e)))
-

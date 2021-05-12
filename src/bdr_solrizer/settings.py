@@ -26,4 +26,4 @@ INDEX_ZIP_QUEUE = 'solrizer_zip'
 TEMP_DIR = get_env_variable('TEMP_DIR')
 BDR_BROWN = get_env_variable('BDR_BROWN')
 BDR_PUBLIC = get_env_variable('BDR_PUBLIC')
-
+OCFL_ROOT = get_env_variable('OCFL_ROOT')
