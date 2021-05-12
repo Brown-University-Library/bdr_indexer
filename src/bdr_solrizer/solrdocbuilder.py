@@ -1,13 +1,16 @@
 import datetime
+import hashlib
 import io
 import json
+import mimetypes
+import os
 import tempfile
 import zipfile
 import redis
 import requests
 from lxml import etree
 from diskcache import Cache
-from rdflib import Graph
+from rdflib import Graph, URIRef
 from eulfedora.rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
@@ -20,7 +23,7 @@ from .indexers import (
     TEIIndexer,
     parse_rdf_xml_into_graph,
 )
-from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR
+from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR, OCFL_ROOT
 from .logger import logger
 
 FILES_EXPIRE_SECONDS = 60*5
@@ -31,6 +34,15 @@ STORAGE_SERVICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 XML_NAMESPACES = {
     'mets': 'http://www.loc.gov/METS/'
 }
+DNG_MIMETYPE = 'image/x-adobe-dng'
+JS_MIMETYPE = 'application/javascript'
+MKV_MIMETYPE = 'video/x-matroska'
+DOWNLOAD_FILENAME_URI = URIRef('info:fedora/fedora-system:def/model#downloadFilename')
+
+
+mimetypes.add_type(DNG_MIMETYPE, '.dng', strict=False)
+mimetypes.add_type(JS_MIMETYPE, '.js', strict=False)
+mimetypes.add_type(MKV_MIMETYPE, '.mkv', strict=False)
 
 
 class ObjectNotFound(RuntimeError):
@@ -44,6 +56,26 @@ class FileNotFound(RuntimeError):
 
 class StorageError(RuntimeError):
     pass
+
+
+def get_download_filename_from_rels_int(rels_int, pid, file_path):
+    try:
+        return str(next(rels_int.objects(subject=URIRef(f'info:fedora/{pid}/{file_path}'), predicate=DOWNLOAD_FILENAME_URI)))
+    except Exception:
+        #just return None if there's any issue
+        pass
+
+
+def get_mimetype_from_filename(filename):
+    if filename.endswith('.tei.xml') or filename.endswith('.tei'):
+        return 'application/tei+xml'
+    if '.' not in filename:
+        filename = 'a.%s' % filename
+    guessed, _ = mimetypes.guess_type(filename, strict=False)
+    if guessed:
+        return guessed
+    else:
+        return 'application/octet-stream'
 
 
 def _process_extracted_text(data, content_type):
@@ -64,34 +96,121 @@ def _process_extracted_text(data, content_type):
         return data.decode('utf8')
 
 
+def ocfl_object_path(pid):
+    sha256_checksum = hashlib.sha256(pid.encode('utf8')).hexdigest()
+    return os.path.join(
+            OCFL_ROOT,
+            sha256_checksum[0:3],
+            sha256_checksum[3:6],
+            sha256_checksum[6:9],
+            pid.replace(':', '%3a'),
+        )
+
+
+def get_files_response_from_inventory(inventory, object_path, pid=None, rels_int=None):
+    reversed_version_nums = list(reversed(list(inventory['versions'].keys()))) #eg. 'v3', 'v2', 'v1'
+    created = inventory['versions']['v1']['created']
+    last_version_num = reversed_version_nums[0]
+    last_modified = inventory['versions'][last_version_num]['created']
+    files = {}
+    if not inventory['versions'][last_version_num]['state']:
+        raise ObjectDeleted()
+    #need full info (all fields) for active files
+    for checksum, file_paths in inventory['versions'][last_version_num]['state'].items():
+        for file_path in file_paths:
+            if file_path not in files:
+                file_info = {
+                        'lastModified': inventory['versions'][last_version_num]['created'],
+                        'checksum': checksum,
+                        'checksumType': 'SHA-512',
+                        'state': 'A',
+                        'size': os.stat(os.path.join(object_path, inventory['manifest'][checksum][0])).st_size,
+                    }
+                download_filename = get_download_filename_from_rels_int(rels_int, pid, file_path)
+                if not download_filename:
+                    download_filename = file_path
+                mimetype = get_mimetype_from_filename(download_filename)
+                file_info['mimetype'] = mimetype
+                files[file_path] = file_info
+    #for deleted files, just need their state
+    for version_num in reversed_version_nums[1:]:
+        for checksum, file_paths in inventory['versions'][version_num]['state'].items():
+            for file_path in file_paths:
+                if file_path not in files:
+                    files[file_path] = {'state': 'D'}
+    return {
+        'storage': 'ocfl',
+        'object': {'created': created, 'lastModified': last_modified},
+        'files': files,
+        'version': last_version_num,
+    }
+
+
+def get_inventory(object_path):
+    with open(os.path.join(object_path, 'inventory.json'), 'rb') as f:
+        data = f.read().decode('utf8')
+    return json.loads(data)
+
+
+def get_ocfl_file_contents(object_path, filename):
+    inventory = get_inventory(object_path)
+    last_version = list(inventory['versions'].keys())[-1]
+    contents = None
+    for checksum, files in inventory['versions'][last_version]['state'].items():
+        for f in files:
+            if f == filename:
+                with open(os.path.join(object_path, inventory['manifest'][checksum][0]), 'rb') as file_obj:
+                    contents = file_obj.read()
+                    break
+    return contents
+
+
 class StorageObject:
 
     def __init__(self, pid, use_object_cache=False):
         self.pid = pid
+        self._ocfl_object_path = ocfl_object_path(pid)
+        if os.path.exists(self._ocfl_object_path):
+            self._is_ocfl_object = True
+        else:
+            self._is_ocfl_object = False
         self._active_file_names = None
         self._active_file_profiles = None
         self.use_object_cache = use_object_cache
         self._rels_ext = None
         self.files_response = self._get_files_response()
 
-    def _get_object_or_error(self, url):
-        response= requests.get(url)
-        if response.status_code == 404:
-            raise ObjectNotFound()
-        if response.status_code == 410:
-            raise ObjectDeleted()
-        if not response.ok:
-            raise StorageError(f'{response.status_code} {response.text}')
-        return response
+    def _get_files_info_or_error(self, url):
+        if self._is_ocfl_object:
+            inventory = get_inventory(self._ocfl_object_path)
+            rels_int = None
+            try:
+                rels_int_bytes = get_ocfl_file_contents(self._ocfl_object_path, 'RELS-INT')
+                if rels_int_bytes:
+                    rels_int = Graph()
+                    rels_int.parse(io.BytesIO(rels_int_bytes), format='application/rdf+xml')
+            except FileNotFoundError:
+                pass
+            files_info = get_files_response_from_inventory(inventory, object_path=self._ocfl_object_path, pid=self.pid, rels_int=rels_int)
+        else:
+            response = requests.get(url)
+            if response.status_code == 404:
+                raise ObjectNotFound()
+            if response.status_code == 410:
+                raise ObjectDeleted()
+            if not response.ok:
+                raise StorageError(f'{response.status_code} {response.text}')
+            files_info = response.json()
+        return files_info
 
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
         with Cache(CACHE_DIR) as object_cache:
-            response = object_cache.get(url, None) if self.use_object_cache else None
-            if not response:
-                response = self._get_object_or_error(url)
-                object_cache.set(url, response, expire=FILES_EXPIRE_SECONDS)
-        return response.json()
+            files_info = object_cache.get(url, None) if self.use_object_cache else None
+            if not files_info:
+                files_info = self._get_files_info_or_error(url)
+                object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
+        return files_info
 
     @property
     def active_file_names(self):
@@ -159,7 +278,6 @@ class StorageObject:
     def ancestors(self):
         return [self.original_object, self.parent_object]
 
-
     def _get_file_contents_url(self, pid, filename):
         return f'{STORAGE_SERVICE_ROOT}{pid}/files/{filename}/content/?{STORAGE_SERVICE_PARAM}'
 
@@ -168,16 +286,22 @@ class StorageObject:
         key = f"{self.modified}_{url}"
 
         with Cache(CACHE_DIR) as content_cache:
-            response = content_cache.get(key, None)
-            if not response:
-                response = requests.get(url)
-                if not response.ok:
-                    if response.status_code == 404:
-                        raise FileNotFoundError(f'{self.pid}/{filename} not found')
-                    else:
-                        raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
-                content_cache.set(key, response, expire=CONTENT_EXPIRE_SECONDS)
-            return response.content
+            content = content_cache.get(key, None)
+            if not content:
+                if self._is_ocfl_object:
+                    content = get_ocfl_file_contents(self._ocfl_object_path, filename)
+                    if not content:
+                        raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
+                else:
+                    response = requests.get(url)
+                    if not response.ok:
+                        if response.status_code == 404:
+                            raise FileNotFoundError(f'{self.pid}/{filename} not found')
+                        else:
+                            raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
+                    content = response.content
+                content_cache.set(key, content, expire=CONTENT_EXPIRE_SECONDS)
+            return content
 
     def get_file_contents_with_content_type(self, filename):
         url = self._get_file_contents_url(self.pid, filename)

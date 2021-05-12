@@ -2,6 +2,8 @@ import datetime
 import json
 import os
 from pathlib import Path
+import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 import responses
@@ -252,6 +254,47 @@ class TestSolrizer(unittest.TestCase):
         responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/', status=410)
         solrizer.index_zip('testsuite:1')
 
+    def test_ocfl_repo_object(self):
+        object_root = os.path.join(settings.OCFL_ROOT, '1b5/64f/1ff/testsuite%3aabcd1234')
+        os.makedirs(object_root, exist_ok=False)
+        with open(os.path.join(object_root, 'inventory.json'), 'wb') as f:
+            f.write(json.dumps(SIMPLE_INVENTORY).encode('utf8'))
+        content_dir = os.path.join(object_root, 'v1', 'content')
+        os.makedirs(content_dir)
+        with open(os.path.join(content_dir, 'file.txt'), 'wb') as f:
+            f.write(b'1234')
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize('testsuite:abcd1234')
+        shutil.rmtree(os.path.join(settings.OCFL_ROOT, '1b5'))
+
+
+SIMPLE_INVENTORY = {
+  "digestAlgorithm": "sha512",
+  "head": "v1",
+  "id": "testsuite:abcd1234",
+  "manifest": {
+    "7545b8...f67": [ "v1/content/file.txt" ]
+  },
+  "type": "https://ocfl.io/1.0/spec/#inventory",
+  "versions": {
+    "v1": {
+      "created": "2018-10-02T12:00:00Z",
+      "message": "One file",
+      "state": {
+        "7545b8...f67": [ "file.txt" ]
+      },
+      "user": {
+        "address": "alice@example.org",
+        "name": "Alice"
+      }
+    }
+  }
+}
+
+
+class TestSolrDocBuilder(unittest.TestCase):
+
     def test_timestamp(self):
         self.assertEqual(solrdocbuilder.timestamp_from_storage_service_string('2020-11-25T20:30:43.73776Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737760, tzinfo=datetime.timezone.utc))
         self.assertEqual(solrdocbuilder.timestamp_from_storage_service_string('2020-11-25T20:30:43.737Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737000, tzinfo=datetime.timezone.utc))
@@ -259,3 +302,15 @@ class TestSolrizer(unittest.TestCase):
     def test_extract_text(self):
         self.assertEqual(solrdocbuilder._process_extracted_text('asdf'.encode('utf8'), None), 'asdf')
 
+    def test_files_response_from_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, 'v1', 'content'))
+            with open(os.path.join(tmp, 'v1/content/file.txt'), 'wb') as f:
+                f.write(b'1234')
+            response = solrdocbuilder.get_files_response_from_inventory(SIMPLE_INVENTORY, object_path=tmp)
+        expected = {'storage': 'ocfl',
+                'object': {'created': '2018-10-02T12:00:00Z', 'lastModified': '2018-10-02T12:00:00Z'},
+                'files': {'file.txt': {'lastModified': '2018-10-02T12:00:00Z', 'state': 'A', 'checksum': '7545b8...f67', 'checksumType': 'SHA-512', 'size': 4, 'mimetype': 'text/plain'}},
+                'version': 'v1',
+            }
+        self.assertEqual(response, expected)
