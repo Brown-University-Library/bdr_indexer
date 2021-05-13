@@ -23,14 +23,13 @@ from .indexers import (
     TEIIndexer,
     parse_rdf_xml_into_graph,
 )
+from . import utils
 from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR, OCFL_ROOT
 from .logger import logger
 
 FILES_EXPIRE_SECONDS = 60*5
 CONTENT_EXPIRE_SECONDS = 60*60
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
-SOLR_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-STORAGE_SERVICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 XML_NAMESPACES = {
     'mets': 'http://www.loc.gov/METS/'
 }
@@ -109,9 +108,9 @@ def ocfl_object_path(pid):
 
 def get_files_response_from_inventory(inventory, object_path, pid=None, rels_int=None):
     reversed_version_nums = list(reversed(list(inventory['versions'].keys()))) #eg. 'v3', 'v2', 'v1'
-    created = inventory['versions']['v1']['created']
+    created = utils.utc_datetime_from_string(inventory['versions']['v1']['created'])
     last_version_num = reversed_version_nums[0]
-    last_modified = inventory['versions'][last_version_num]['created']
+    last_modified = utils.utc_datetime_from_string(inventory['versions'][last_version_num]['created'])
     files = {}
     if not inventory['versions'][last_version_num]['state']:
         raise ObjectDeleted()
@@ -120,7 +119,7 @@ def get_files_response_from_inventory(inventory, object_path, pid=None, rels_int
         for file_path in file_paths:
             if file_path not in files:
                 file_info = {
-                        'lastModified': inventory['versions'][last_version_num]['created'],
+                        'lastModified': utils.utc_datetime_from_string(inventory['versions'][last_version_num]['created']),
                         'checksum': checksum,
                         'checksumType': 'SHA-512',
                         'state': 'A',
@@ -201,6 +200,10 @@ class StorageObject:
             if not response.ok:
                 raise StorageError(f'{response.status_code} {response.text}')
             files_info = response.json()
+            files_info['object']['created'] = utils.utc_datetime_from_string(files_info['object']['created'])
+            files_info['object']['lastModified'] = utils.utc_datetime_from_string(files_info['object']['lastModified'])
+            for file_info in files_info['files'].values():
+                file_info['lastModified'] = utils.utc_datetime_from_string(file_info['lastModified'])
         return files_info
 
     def _get_files_response(self):
@@ -447,13 +450,6 @@ class SolrDocBuilder:
             logger.error(f'{pid} {ds_id} error extracting text: {traceback.format_exc()}')
 
 
-def timestamp_from_storage_service_string(datetime_str):
-    return datetime.datetime.strptime(datetime_str, STORAGE_SERVICE_DATE_FORMAT).replace(tzinfo=datetime.timezone.utc)
-
-def timestamp_from_solr_string(datetime_str):
-    return datetime.datetime.strptime(datetime_str, SOLR_DATE_FORMAT).replace(tzinfo=datetime.timezone.utc)
-
-
 class ZipIndexer:
 
     def __init__(self, storage_object, existing_solr_doc):
@@ -463,10 +459,10 @@ class ZipIndexer:
 
     def _zip_index_needed(self):
         if 'zip_filelist_timestamp_dsi' in self.existing_solr_doc:
-            zip_filelist_timestamp = timestamp_from_solr_string(self.existing_solr_doc['zip_filelist_timestamp_dsi'])
+            zip_filelist_timestamp = utils.utc_datetime_from_string(self.existing_solr_doc['zip_filelist_timestamp_dsi'])
             zip_ds_profile = self.storage_object.active_file_profiles.get('ZIP', None)
             if zip_ds_profile:
-                zip_ds_modified = timestamp_from_storage_service_string(zip_ds_profile['lastModified'])
+                zip_ds_modified = zip_ds_profile['lastModified']
                 if zip_ds_modified <= zip_filelist_timestamp:
                     logger.debug(f'ZIP ds ({zip_ds_modified}) has already been indexed at {zip_filelist_timestamp}')
                     return False
@@ -491,8 +487,7 @@ class ZipIndexer:
                         'doc': {
                             'pid': self.pid,
                             'zip_filelist_ssim': {'set': sorted(entry_names)},
-                            'zip_filelist_timestamp_dsi': {'set': datetime.datetime.utcnow().strftime(SOLR_DATE_FORMAT)},
+                            'zip_filelist_timestamp_dsi': {'set': utils.utc_datetime_to_solr_string(datetime.datetime.utcnow())},
                         },
                     }
                 })
-

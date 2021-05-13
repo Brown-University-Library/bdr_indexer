@@ -1,4 +1,5 @@
 import json
+from .. import utils
 
 
 class StorageIndexer:
@@ -10,10 +11,10 @@ class StorageIndexer:
         ds_ids, ds_info, object_size = self._get_ds_info()
         return {
             "pid": self.storage_object.pid,
-            "fed_created_dsi": self.storage_object.created,
-            "object_created_dsi": self.storage_object.created,
-            "fed_last_modified_dsi": self.storage_object.modified,
-            "object_last_modified_dsi": self.storage_object.modified,
+            "fed_created_dsi": utils.utc_datetime_to_solr_string(self.storage_object.created),
+            "object_created_dsi": utils.utc_datetime_to_solr_string(self.storage_object.created),
+            "fed_last_modified_dsi": utils.utc_datetime_to_solr_string(self.storage_object.modified),
+            "object_last_modified_dsi": utils.utc_datetime_to_solr_string(self.storage_object.modified),
             "storage_location_ssi": self.storage_object.storage_location,
             "datastreams_ssi":  ds_info,
             'ds_ids_ssim': ds_ids,
@@ -38,11 +39,10 @@ class StorageIndexer:
                 'size': ds_profile['size'],
                 'checksum': ds_profile['checksum'],
                 'checksumType': ds_profile['checksumType'],
-                'lastModified': ds_profile['lastModified'],
+                'lastModified': utils.utc_datetime_to_solr_string(ds_profile['lastModified']),
             }
             #Note: only adding the size of Active datastreams (excluding AUDIT) for now
             ds_size = int(ds_profile['size'])
             if ds_size > 0:
                 object_size += ds_size
         return ds_ids, json.dumps(ds_info), str(object_size)
-
