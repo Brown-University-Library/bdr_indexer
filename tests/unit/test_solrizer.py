@@ -11,7 +11,7 @@ from rdflib import Graph, URIRef
 from diskcache import Cache
 from eulfedora.rdfns import model as model_ns, relsext as relsext_ns
 from bdrxml import irMetadata, rights, mods, darwincore
-from bdr_solrizer import solrizer, solrdocbuilder, settings
+from bdr_solrizer import solrizer, solrdocbuilder, settings, utils
 from . import test_data
 
 
@@ -115,8 +115,8 @@ class TestSolrizer(unittest.TestCase):
                 self.assertEqual(sorted(actual_solr_doc['add']['doc']['ds_ids_ssim']), expected_file_names)
                 self.assertEqual(actual_solr_doc['add']['doc']['dwc_catalog_number_ssi'], 'catalog number')
                 self.assertEqual(actual_solr_doc['add']['doc']['extracted_text'], expected_extracted_text)
-                self.assertEqual(actual_solr_doc['add']['doc']['fed_created_dsi'], '2020-11-19T20:30:43.73776Z')
-                self.assertEqual(actual_solr_doc['add']['doc']['object_created_dsi'], '2020-11-19T20:30:43.73776Z')
+                self.assertEqual(actual_solr_doc['add']['doc']['fed_created_dsi'], '2020-11-19T20:30:43.737760Z')
+                self.assertEqual(actual_solr_doc['add']['doc']['object_created_dsi'], '2020-11-19T20:30:43.737760Z')
                 self.assertEqual(actual_solr_doc['add']['doc']['storage_location_ssi'], 'ocfl')
                 self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
                 self.assertEqual(sorted(list(json.loads(actual_solr_doc['add']['doc']['datastreams_ssi']).keys())), expected_file_names)
@@ -222,9 +222,9 @@ class TestSolrizer(unittest.TestCase):
     @responses.activate
     def test_index_zip(self):
         files_response = {
-                'object': {'created': '', 'lastModified': ''},
+                'object': {'created': '2020-11-25T20:30:43.73776Z', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                 'files': {
-                    'RELS-EXT': {'state': 'A'},
+                    'RELS-EXT': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                     'ZIP': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                 }
             }
@@ -295,10 +295,6 @@ SIMPLE_INVENTORY = {
 
 class TestSolrDocBuilder(unittest.TestCase):
 
-    def test_timestamp(self):
-        self.assertEqual(solrdocbuilder.timestamp_from_storage_service_string('2020-11-25T20:30:43.73776Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737760, tzinfo=datetime.timezone.utc))
-        self.assertEqual(solrdocbuilder.timestamp_from_storage_service_string('2020-11-25T20:30:43.737Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737000, tzinfo=datetime.timezone.utc))
-
     def test_extract_text(self):
         self.assertEqual(solrdocbuilder._process_extracted_text('asdf'.encode('utf8'), None), 'asdf')
 
@@ -309,8 +305,25 @@ class TestSolrDocBuilder(unittest.TestCase):
                 f.write(b'1234')
             response = solrdocbuilder.get_files_response_from_inventory(SIMPLE_INVENTORY, object_path=tmp)
         expected = {'storage': 'ocfl',
-                'object': {'created': '2018-10-02T12:00:00Z', 'lastModified': '2018-10-02T12:00:00Z'},
-                'files': {'file.txt': {'lastModified': '2018-10-02T12:00:00Z', 'state': 'A', 'checksum': '7545b8...f67', 'checksumType': 'SHA-512', 'size': 4, 'mimetype': 'text/plain'}},
+                'object': {'created': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc), 'lastModified': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc)},
+                'files': {'file.txt': {'lastModified': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc), 'state': 'A', 'checksum': '7545b8...f67', 'checksumType': 'SHA-512', 'size': 4, 'mimetype': 'text/plain'}},
                 'version': 'v1',
             }
+        self.maxDiff = None
         self.assertEqual(response, expected)
+
+
+class TestUtils(unittest.TestCase):
+
+    def test_datetime_from_string(self):
+        self.assertEqual(utils.utc_datetime_from_string('2021-03-23T10:20:30Z'), datetime.datetime(2021, 3, 23, 10, 20, 30, tzinfo=datetime.timezone.utc))
+        self.assertEqual(utils.utc_datetime_from_string('2021-03-23T10:20:30.000Z'), datetime.datetime(2021, 3, 23, 10, 20, 30, tzinfo=datetime.timezone.utc))
+        self.assertEqual(utils.utc_datetime_from_string('2020-11-25T20:30:43.737Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737000, tzinfo=datetime.timezone.utc))
+        self.assertEqual(utils.utc_datetime_from_string('2020-11-25T20:30:43.73776Z'), datetime.datetime(2020, 11, 25, 20, 30, 43, 737760, tzinfo=datetime.timezone.utc))
+        self.assertEqual(utils.utc_datetime_from_string('2021-03-23T10:20:30.522328Z'), datetime.datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=datetime.timezone.utc))
+        dt = utils.utc_datetime_from_string('2021-03-23T06:20:30.522328-04:00')
+        self.assertEqual(dt, datetime.datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=datetime.timezone.utc))
+
+    def test_datetime_to_solr_string(self):
+        self.assertEqual(utils.utc_datetime_to_solr_string(datetime.datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=datetime.timezone.utc)), '2021-03-23T10:20:30.522328Z')
+        self.assertEqual(utils.utc_datetime_to_solr_string(datetime.datetime(2021, 3, 23, 10, 20, 30, tzinfo=datetime.timezone.utc)), '2021-03-23T10:20:30.000000Z')
