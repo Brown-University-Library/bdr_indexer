@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import tempfile
+import time
 import zipfile
 import redis
 import requests
@@ -145,14 +146,20 @@ def get_files_response_from_inventory(inventory, object_path, pid=None, rels_int
     }
 
 
-def get_inventory(object_path):
-    with open(os.path.join(object_path, 'inventory.json'), 'rb') as f:
-        data = f.read().decode('utf8')
+def get_inventory(object_path, pid):
+    inventory_path = os.path.join(object_path, 'inventory.json')
+    try:
+        with open(inventory_path, 'rb') as f:
+            data = f.read().decode('utf8')
+    except FileNotFoundError:
+        logger.warning(f'{pid} root inventory.json not found, trying again')
+        time.sleep(.1)
+        with open(inventory_path, 'rb') as f:
+            data = f.read().decode('utf8')
     return json.loads(data)
 
 
-def get_ocfl_file_contents(object_path, filename):
-    inventory = get_inventory(object_path)
+def get_ocfl_file_contents(object_path, inventory, filename):
     last_version = list(inventory['versions'].keys())[-1]
     contents = None
     for checksum, files in inventory['versions'][last_version]['state'].items():
@@ -169,8 +176,10 @@ class StorageObject:
     def __init__(self, pid, use_object_cache=False):
         self.pid = pid
         self._ocfl_object_path = ocfl_object_path(pid)
+        self._inventory = None
         if os.path.exists(self._ocfl_object_path):
             self._is_ocfl_object = True
+            self._inventory = get_inventory(self._ocfl_object_path, self.pid)
         else:
             self._is_ocfl_object = False
         self._active_file_names = None
@@ -181,16 +190,16 @@ class StorageObject:
 
     def _get_files_info_or_error(self, url):
         if self._is_ocfl_object:
-            inventory = get_inventory(self._ocfl_object_path)
             rels_int = None
             try:
-                rels_int_bytes = get_ocfl_file_contents(self._ocfl_object_path, 'RELS-INT')
+                rels_int_bytes = get_ocfl_file_contents(self._ocfl_object_path, inventory=self._inventory, filename='RELS-INT')
                 if rels_int_bytes:
                     rels_int = Graph()
                     rels_int.parse(io.BytesIO(rels_int_bytes), format='application/rdf+xml')
             except FileNotFoundError:
                 pass
-            files_info = get_files_response_from_inventory(inventory, object_path=self._ocfl_object_path, pid=self.pid, rels_int=rels_int)
+            files_info = get_files_response_from_inventory(self._inventory, object_path=self._ocfl_object_path, pid=self.pid, rels_int=rels_int)
+            logger.info(f'{self.pid} in ocfl {self._ocfl_object_path} - version {self._inventory["head"]}')
         else:
             response = requests.get(url)
             if response.status_code == 404:
@@ -204,13 +213,16 @@ class StorageObject:
             files_info['object']['lastModified'] = utils.utc_datetime_from_string(files_info['object']['lastModified'])
             for file_info in files_info['files'].values():
                 file_info['lastModified'] = utils.utc_datetime_from_string(file_info['lastModified'])
+            logger.info(f'{self.pid} from storage server (location {files_info["storage"]}')
         return files_info
 
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
         with Cache(CACHE_DIR) as object_cache:
             files_info = object_cache.get(url, None) if self.use_object_cache else None
-            if not files_info:
+            if files_info:
+                logger.info(f'{self.pid} cached files info')
+            else:
                 files_info = self._get_files_info_or_error(url)
                 object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
         return files_info
@@ -292,7 +304,7 @@ class StorageObject:
             content = content_cache.get(key, None)
             if not content:
                 if self._is_ocfl_object:
-                    content = get_ocfl_file_contents(self._ocfl_object_path, filename)
+                    content = get_ocfl_file_contents(self._ocfl_object_path, inventory=self._inventory, filename=filename)
                     if not content:
                         raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
                 else:

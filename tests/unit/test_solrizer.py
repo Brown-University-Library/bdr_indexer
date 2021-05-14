@@ -138,7 +138,8 @@ class TestSolrizer(unittest.TestCase):
                 'object': {'created': '2020-11-19T20:30:43.73776Z', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                 'files': {
                     'MODS': {'state': 'A', 'mimetype': 'image/jpeg', 'size': 40, 'checksum': 'asdf', 'checksumType': 'MD5', 'lastModified': '2020-11-25T20:30:43.73776Z'},
-                }
+                },
+                'storage': 'fedora',
             }
         responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/',
                       body=json.dumps(files_response),
@@ -226,7 +227,8 @@ class TestSolrizer(unittest.TestCase):
                 'files': {
                     'RELS-EXT': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                     'ZIP': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
-                }
+                },
+                'storage': 'fedora',
             }
         responses.add(responses.GET, 'http://localhost/teststorage/testsuite:1/files/',
                       body=json.dumps(files_response),
