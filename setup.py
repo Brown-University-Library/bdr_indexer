@@ -2,11 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="bdr_solrizer",
-    version='4.11',
+    version='4.12',
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     scripts=['bin/queue_solrize'],
     install_requires=[
+        'bdrocfl',
         'bdrxml>=1.2',
         'eulfedora>=1.7.2',
         'requests>=2.11.0',

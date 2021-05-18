@@ -38,8 +38,8 @@ class StorageIndexer:
                 'mimeType': ds_profile['mimetype'],
                 'size': ds_profile['size'],
                 'checksum': ds_profile['checksum'],
-                'checksumType': ds_profile['checksumType'],
-                'lastModified': utils.utc_datetime_to_solr_string(ds_profile['lastModified']),
+                'checksumType': ds_profile['checksum_type'],
+                'lastModified': utils.utc_datetime_to_solr_string(ds_profile['last_modified']),
             }
             #Note: only adding the size of Active datastreams (excluding AUDIT) for now
             ds_size = int(ds_profile['size'])

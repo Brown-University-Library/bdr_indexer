@@ -225,8 +225,8 @@ class TestSolrizer(unittest.TestCase):
         files_response = {
                 'object': {'created': '2020-11-25T20:30:43.73776Z', 'lastModified': '2020-11-25T20:30:43.73776Z'},
                 'files': {
-                    'RELS-EXT': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
-                    'ZIP': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z'},
+                    'RELS-EXT': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z', 'checksumType': 'SHA-512'},
+                    'ZIP': {'state': 'A', 'lastModified': '2020-11-25T20:30:43.73776Z', 'checksumType': 'SHA-512'},
                 },
                 'storage': 'fedora',
             }
@@ -299,20 +299,6 @@ class TestSolrDocBuilder(unittest.TestCase):
 
     def test_extract_text(self):
         self.assertEqual(solrdocbuilder._process_extracted_text('asdf'.encode('utf8'), None), 'asdf')
-
-    def test_files_response_from_inventory(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            os.makedirs(os.path.join(tmp, 'v1', 'content'))
-            with open(os.path.join(tmp, 'v1/content/file.txt'), 'wb') as f:
-                f.write(b'1234')
-            response = solrdocbuilder.get_files_response_from_inventory(SIMPLE_INVENTORY, object_path=tmp)
-        expected = {'storage': 'ocfl',
-                'object': {'created': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc), 'lastModified': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc)},
-                'files': {'file.txt': {'lastModified': datetime.datetime(2018, 10, 2, 12, 0, 0, 0, tzinfo=datetime.timezone.utc), 'state': 'A', 'checksum': '7545b8...f67', 'checksumType': 'SHA-512', 'size': 4, 'mimetype': 'text/plain'}},
-                'version': 'v1',
-            }
-        self.maxDiff = None
-        self.assertEqual(response, expected)
 
 
 class TestUtils(unittest.TestCase):
