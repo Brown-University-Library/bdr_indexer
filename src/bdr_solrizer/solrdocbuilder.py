@@ -75,6 +75,8 @@ class StorageObject:
             self._ocfl_object = ocfl.Object(self.pid)
         except ocfl.ObjectNotFound:
             self._ocfl_object = None
+        except ocfl.ObjectDeleted:
+            raise ObjectDeleted()
         self._active_file_names = None
         self._active_file_profiles = None
         self.use_object_cache = use_object_cache
