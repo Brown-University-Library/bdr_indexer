@@ -80,11 +80,14 @@ class StorageObject:
                 pass
             except ocfl.ObjectDeleted:
                 raise ObjectDeleted()
+        self._files_response = None
+        if not self._ocfl_object:
+            #if we don't have an ocfl object, we need to go ahead and get files response, so we can raise errors if object isn't found or is deleted
+            self._files_response = self._get_files_response()
         self._active_file_names = None
         self._active_file_profiles = None
         self.use_object_cache = use_object_cache
         self._rels_ext = None
-        self.files_response = self._get_files_response()
 
     def _get_files_info_or_error(self, url):
         if self._ocfl_object:
@@ -120,6 +123,12 @@ class StorageObject:
         files_info = self._get_files_info_or_error(url)
                 #object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
         return files_info
+
+    @property
+    def files_response(self):
+        if not self._files_response:
+            self._files_response = self._get_files_response()
+        return self._files_response
 
     @property
     def active_file_names(self):
