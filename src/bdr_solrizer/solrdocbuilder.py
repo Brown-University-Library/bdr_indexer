@@ -69,17 +69,15 @@ def _process_extracted_text(data, content_type):
 
 class StorageObject:
 
-    def __init__(self, pid, use_object_cache=False, use_ocfl_fs=True):
+    def __init__(self, pid, use_object_cache=False):
         self.pid = pid
         self._ocfl_object = None
-        self._use_ocfl_fs = use_ocfl_fs
-        if use_ocfl_fs:
-            try:
-                self._ocfl_object = ocfl.Object(self.pid)
-            except ocfl.ObjectNotFound:
-                pass
-            except ocfl.ObjectDeleted:
-                raise ObjectDeleted()
+        try:
+            self._ocfl_object = ocfl.Object(self.pid)
+        except ocfl.ObjectNotFound:
+            pass
+        except ocfl.ObjectDeleted:
+            raise ObjectDeleted()
         self._files_response = None
         if not self._ocfl_object:
             #if we don't have an ocfl object, we need to go ahead and get files response, so we can raise errors if object isn't found or is deleted
@@ -115,13 +113,13 @@ class StorageObject:
 
     def _get_files_response(self):
         url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
-        #with Cache(CACHE_DIR) as object_cache:
-            #files_info = object_cache.get(url, None) if self.use_object_cache else None
-            #if files_info:
-            #    logger.info(f'{self.pid} cached files info')
-            #else:
-        files_info = self._get_files_info_or_error(url)
-                #object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
+        with Cache(CACHE_DIR) as object_cache:
+            files_info = object_cache.get(url, None) if self.use_object_cache else None
+            if files_info:
+                logger.info(f'{self.pid} cached files info')
+            else:
+                files_info = self._get_files_info_or_error(url)
+                object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
         return files_info
 
     @property
@@ -183,7 +181,7 @@ class StorageObject:
 
     @property
     def parent_object(self):
-        return StorageObject(self.parent_pid, use_object_cache=True, use_ocfl_fs=self._use_ocfl_fs) if self.parent_pid else None
+        return StorageObject(self.parent_pid, use_object_cache=True) if self.parent_pid else None
 
     @property
     def original_pid(self):
@@ -193,7 +191,7 @@ class StorageObject:
 
     @property
     def original_object(self):
-        return StorageObject(self.original_pid, use_object_cache=True, use_ocfl_fs=self._use_ocfl_fs) if self.original_pid else None
+        return StorageObject(self.original_pid, use_object_cache=True) if self.original_pid else None
 
     @property
     def ancestors(self):
@@ -206,26 +204,26 @@ class StorageObject:
         url = self._get_file_contents_url(self.pid, filename)
         key = f"{self.modified}_{url}"
 
-        #with Cache(CACHE_DIR) as content_cache:
-        #    content = content_cache.get(key, None)
-        #    if not content:
-        if self._ocfl_object:
-            try:
-                content_path = self._ocfl_object.get_path_to_file(filename)
-                with open(content_path, 'rb') as f:
-                    content = f.read()
-            except FileNotFoundError:
-                raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
-        else:
-            response = requests.get(url)
-            if not response.ok:
-                if response.status_code == 404:
-                    raise FileNotFoundError(f'{self.pid}/{filename} not found')
+        with Cache(CACHE_DIR) as content_cache:
+            content = content_cache.get(key, None)
+            if not content:
+                if self._ocfl_object:
+                    try:
+                        content_path = self._ocfl_object.get_path_to_file(filename)
+                        with open(content_path, 'rb') as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
                 else:
-                    raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
-            content = response.content
-        #        content_cache.set(key, content, expire=CONTENT_EXPIRE_SECONDS)
-        return content
+                    response = requests.get(url)
+                    if not response.ok:
+                        if response.status_code == 404:
+                            raise FileNotFoundError(f'{self.pid}/{filename} not found')
+                        else:
+                            raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
+                    content = response.content
+                content_cache.set(key, content, expire=CONTENT_EXPIRE_SECONDS)
+            return content
 
     def get_file_contents_with_content_type(self, filename):
         url = self._get_file_contents_url(self.pid, filename)
