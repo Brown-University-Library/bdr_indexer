@@ -8,3 +8,4 @@ rq==0.13.0
 diskcache
 inflection
 roman
+click==7.1.2
