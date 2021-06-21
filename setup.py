@@ -9,6 +9,7 @@ setup(
     install_requires=[
         'bdrocfl',
         'bdrxml>=1.2',
+        'rdflib',
         'requests>=2.11.0',
         'redis>=3.0.1',
         'rq==0.13.0',
