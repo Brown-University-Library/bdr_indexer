@@ -16,6 +16,8 @@ click==8.0.1
     # via rq
 diskcache==5.2.1
     # via -r base.in
+django-dotenv==1.4.2
+    # via -r base.in
 eulxml==1.1.3
     # via bdrxml
 idna==2.10

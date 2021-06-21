@@ -1,5 +1,6 @@
 bdrocfl
 bdrxml
+django-dotenv
 rdflib
 requests
 redis
