@@ -1,0 +1,10 @@
+bdrocfl
+bdrxml
+django-dotenv
+rdflib
+requests
+redis
+rq==0.13.0
+diskcache
+inflection
+roman
