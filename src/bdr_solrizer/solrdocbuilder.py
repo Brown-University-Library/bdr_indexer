@@ -71,6 +71,7 @@ class StorageObject:
 
     def __init__(self, pid, use_object_cache=False):
         self.pid = pid
+        self.use_object_cache = use_object_cache
         self._ocfl_object = None
         try:
             self._ocfl_object = ocfl.Object(self.pid)
@@ -78,14 +79,13 @@ class StorageObject:
             pass
         except ocfl.ObjectDeleted:
             raise ObjectDeleted()
+        self._active_file_names = None
+        self._active_file_profiles = None
+        self._rels_ext = None
         self._files_response = None
         if not self._ocfl_object:
             #if we don't have an ocfl object, we need to go ahead and get files response, so we can raise errors if object isn't found or is deleted
             self._files_response = self._get_files_response()
-        self._active_file_names = None
-        self._active_file_profiles = None
-        self.use_object_cache = use_object_cache
-        self._rels_ext = None
 
     def _get_files_info_or_error(self, url):
         if self._ocfl_object:
