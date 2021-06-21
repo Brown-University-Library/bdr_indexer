@@ -12,7 +12,7 @@ from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
 from rdflib import Graph
-from eulfedora.rdfns import relsext as relsext_ns
+from .rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
     StorageIndexer,

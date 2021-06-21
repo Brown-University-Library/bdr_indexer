@@ -9,9 +9,9 @@ from unittest.mock import patch
 import responses
 from rdflib import Graph, URIRef
 from diskcache import Cache
-from eulfedora.rdfns import model as model_ns, relsext as relsext_ns
 from bdrxml import irMetadata, rights, mods, darwincore
 from bdr_solrizer import solrizer, solrdocbuilder, settings, utils
+from bdr_solrizer.rdfns import model as model_ns, relsext as relsext_ns
 from . import test_data
 
 
