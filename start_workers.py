@@ -18,7 +18,7 @@ def configure_logging():
 
 def start_worker(queues=None):
     if not queues:
-        queues = ['index', 're-index', 'index-zip']
+        queues = ['index', 'index-zip', 're-index']
     with Connection():
         w = Worker(queues)
         pid = os.fork()
