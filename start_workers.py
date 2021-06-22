@@ -18,7 +18,7 @@ def configure_logging():
 
 def start_worker(queues=None):
     if not queues:
-        queues = ['index', 're-index', 'index-zip']
+        queues = [settings.SOLRIZE_QUEUE, settings.INDEX_ZIP_QUEUE, settings.REINDEX_QUEUE]
     with Connection():
         w = Worker(queues)
         pid = os.fork()
@@ -34,6 +34,8 @@ if __name__ == '__main__':
 
     PROJECT_ROOT = dirname(CODE_ROOT)
     dotenv.read_dotenv(join(PROJECT_ROOT, '.env'))
+
+    from bdr_solrizer import settings
 
     configure_logging()
 

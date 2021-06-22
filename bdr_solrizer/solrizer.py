@@ -8,6 +8,7 @@ from .settings import (
     SOLR74_URL,
     COMMIT_WITHIN,
     COMMIT_WITHIN_ADD,
+    BATCH_ACTION,
 )
 from .solrdocbuilder import StorageObject, SolrDocBuilder, ZipIndexer, ObjectNotFound, ObjectDeleted
 from .queues import queue_solrize_job, queue_zip_job
@@ -47,7 +48,7 @@ class Solrizer:
         doc = sdb.get_solr_doc()
         self._post_to_solr(doc, action)
         #batch-reindex jobs don't need us to look for dependents to update
-        if action != 'batch_reindex':
+        if action != BATCH_ACTION:
             self._queue_dependent_object_jobs(self.pid, action)
         #automatically queue a zip job if there's a ZIP file - the zip indexing code will check if we really need to index the zip contents
         if 'ZIP' in storage_object.active_file_names:

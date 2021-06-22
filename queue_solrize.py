@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import time
 import sys
 from bdr_solrizer import queues
 from bdr_solrizer import settings
@@ -16,14 +15,14 @@ def send_error_email(msg):
     s.sendmail(f'bdr_indexer@{settings.SERVER}', [settings.NOTIFICATION_EMAIL_ADDRESS], email_msg.as_string())
 
 
-def main(pids, solr_instance):
+def main(pids, solr_instance, batch=True):
     for pid in pids:
         print(f'{pid} - ', end='')
-        job = queues.queue_solrize_job(pid)
+        if batch:
+            job = queues.queue_solrize_job(pid, action=settings.BATCH_ACTION)
+        else:
+            job = queues.queue_solrize_job(pid)
         print(job.id)
-        while queues.Q.count > 100:
-            print(f'{queues.Q.count} solr jobs')
-            time.sleep(4)
         if queues.FAILED_Q.count > 50:
             msg = f'Quitting because failed queue has {queues.FAILED_Q.count} messages.'
             send_error_email(msg)
@@ -38,11 +37,11 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--solr_instance', dest='solr_instance', default='7.4', help='solr instance to use: 6.4 or 7.4 (default)')
     args = parser.parse_args()
     if args.pids:
-        main(args.pids.split(','), args.solr_instance)
+        main(args.pids.split(','), args.solr_instance, batch=False)
     elif args.file:
         with open(args.file, 'rb') as f:
             pids = [line.strip().decode('utf8') for line in f.readlines()]
-            main(pids, args.solr_instance)
+            main(pids, args.solr_instance, batch=True)
     else:
         sys.exit('nothing to do')
 
