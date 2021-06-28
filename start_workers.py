@@ -18,7 +18,7 @@ def configure_logging():
 
 def start_worker(queues=None):
     if not queues:
-        queues = [settings.SOLRIZE_QUEUE, settings.INDEX_ZIP_QUEUE, settings.REINDEX_QUEUE]
+        queues = [settings.HIGH_QUEUE, settings.MEDIUM_QUEUE, settings.LOW_QUEUE]
     with Connection():
         w = Worker(queues)
         pid = os.fork()
@@ -42,4 +42,4 @@ if __name__ == '__main__':
     for i in range(5):
         start_worker()
     #also start a worker to handle the old queue names, till everything is switched over
-    start_worker(queues=('solrizer', 'solrizer_zip'))
+    start_worker(queues=('solrizer', 'solrizer_zip', 'index', 're-index', 'index-zip'))

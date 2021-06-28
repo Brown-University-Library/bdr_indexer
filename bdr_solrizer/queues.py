@@ -5,20 +5,23 @@ from rq import Queue
 from rq.queue import get_failed_queue
 from . import settings
 
-Q = Queue(settings.SOLRIZE_QUEUE, connection=Redis())
-REINDEX_Q = Queue(settings.REINDEX_QUEUE, connection=Redis())
-ZIP_Q = Queue(settings.INDEX_ZIP_QUEUE, connection=Redis())
+HIGH_PRIORITY_Q = Queue(settings.HIGH_QUEUE, connection=Redis())
+MEDIUM_PRIORITY_Q = Queue(settings.MEDIUM_QUEUE, connection=Redis())
+LOW_PRIORITY_Q = Queue(settings.LOW_QUEUE, connection=Redis())
 FAILED_Q = get_failed_queue(connection=Redis())
 
 def queue_solrize_job(pid, action='update', solr_instance='7.4'):
-    queue = Q
+    queue = HIGH_PRIORITY_Q
     #put batch reindexing job on a lower-priority queue
     if action == settings.BATCH_ACTION:
-        queue = REINDEX_Q
+        queue = LOW_PRIORITY_Q
     job = queue.enqueue_call(func=settings.SOLRIZE_FUNCTION, args=(pid,), kwargs={'action': action, 'solr_instance': solr_instance}, timeout=2880)
     return job
 
 
-def queue_zip_job(pid):
-    job = ZIP_Q.enqueue_call(func=settings.INDEX_ZIP_FUNCTION, args=(pid,), timeout=2880)
+def queue_zip_job(pid, action='update'):
+    queue = MEDIUM_PRIORITY_Q
+    if action == settings.BATCH_ACTION:
+        queue = LOW_PRIORITY_Q
+    job = queue.enqueue_call(func=settings.INDEX_ZIP_FUNCTION, args=(pid,), timeout=2880)
     return job
