@@ -4,7 +4,7 @@
 #
 #    pip-compile base.in
 #
-bdrocfl==0.4
+git+https://github.com/Brown-University-Library/bdrocfl.git#d55da7888ff2af75e46771751a6dddf83d16af4c
     # via -r base.in
 bdrxml==1.2
     # via -r base.in
