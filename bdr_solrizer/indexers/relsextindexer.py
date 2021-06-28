@@ -3,7 +3,7 @@ import inflection
 
 from rdflib import Namespace, Graph
 from rdflib.namespace import DCTERMS, RDF
-from ..rdfns import (
+from bdrxml.rdfns import (
     relsext as RELS_EXT_NS,
     model as MODELS_NS,
 )

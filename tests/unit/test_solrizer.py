@@ -12,8 +12,8 @@ import responses
 from rdflib import Graph, URIRef
 from diskcache import Cache
 from bdrxml import irMetadata, rights, mods, darwincore
+from bdrxml.rdfns import model as model_ns, relsext as relsext_ns
 from bdr_solrizer import solrizer, solrdocbuilder, settings, utils
-from bdr_solrizer.rdfns import model as model_ns, relsext as relsext_ns
 from bdrocfl import ocfl, test_utils
 from . import test_data
 

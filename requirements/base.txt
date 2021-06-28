@@ -6,7 +6,7 @@
 #
 git+https://github.com/Brown-University-Library/bdrocfl.git#d55da7888ff2af75e46771751a6dddf83d16af4c
     # via -r base.in
-bdrxml==1.2
+bdrxml==1.3
     # via -r base.in
 certifi==2021.5.30
     # via requests
@@ -37,7 +37,9 @@ ply==3.8
 pyparsing==2.4.7
     # via rdflib
 rdflib==5.0.0
-    # via -r base.in
+    # via
+    #   -r base.in
+    #   bdrxml
 redis==3.5.3
     # via
     #   -r base.in

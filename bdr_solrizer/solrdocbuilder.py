@@ -1,17 +1,13 @@
 import datetime
-import hashlib
 import io
 import json
-import os
-import tempfile
-import time
 import zipfile
 import redis
 from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
 from rdflib import Graph
-from .rdfns import relsext as relsext_ns
+from bdrxml.rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
     StorageIndexer,
