@@ -67,6 +67,7 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc']['storage_location_ssi'], 'ocfl')
         self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
         self.assertEqual(sorted(list(json.loads(actual_solr_doc['add']['doc']['datastreams_ssi']).keys())), expected_file_names)
+        queue_image_parent_job.assert_not_called()
 
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'

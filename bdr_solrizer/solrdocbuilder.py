@@ -174,9 +174,11 @@ class StorageObject:
         return [self.original_object, self.parent_object]
 
     def is_image_child(self):
-        objects = list(self.rels_ext.objects(predicate=model_ns.hasModel))
-        if objects:
-            return True
+        if self.parent_pid:
+            models = RelsExtIndexer.get_content_models_from_rels(self.rels_ext)
+            object_type = RelsExtIndexer.get_object_type_from_content_models(models)
+            if object_type == 'image':
+                return True
 
     def get_file_contents(self, filename):
         cache_key = f'{self.pid}_{self._ocfl_object.head_version}_{filename}'
