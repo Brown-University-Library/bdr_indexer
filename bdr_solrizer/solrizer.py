@@ -4,14 +4,17 @@ import requests
 
 from .logger import logger
 from .settings import (
-    SOLR_URL,
     SOLR74_URL,
     COMMIT_WITHIN,
     COMMIT_WITHIN_ADD,
+    ADD_ACTION,
+    DELETE_ACTION,
     BATCH_ACTION,
+    ZIP_ACTION,
+    IMAGE_PARENT_ACTION,
 )
 from .solrdocbuilder import StorageObject, SolrDocBuilder, ZipIndexer, ObjectNotFound, ObjectDeleted
-from .queues import queue_solrize_job, queue_zip_job
+from .queues import queue_solrize_job, queue_zip_job, queue_image_parent_job
 
 
 class Solrizer:
@@ -21,26 +24,28 @@ class Solrizer:
         self.pid = pid
 
     def process(self, action):
-        if action == 'delete':
+        if action == DELETE_ACTION:
             self._delete_solr_document(self.pid)
         else:
             try:
                 storage_object = StorageObject(self.pid)
-                if action == 'zip':
+                if action == ZIP_ACTION:
                     self._index_zip(storage_object)
+                elif action == IMAGE_PARENT_ACTION:
+                    self._index_image_parent(storage_object)
                 else:
                     self._update_solr_document(storage_object, action)
             except ObjectNotFound:
                 #if object isn't in storage, it shouldn't be in solr either
                 self._delete_solr_document(self.pid)
             except ObjectDeleted:
-                if action != 'zip':
+                if action != ZIP_ACTION:
                     self._delete_solr_document(self.pid)
 
     def _delete_solr_document(self, pid):
         logger.info(f'  deleting {pid} from solr')
         data = json.dumps({'delete': {'id': pid}})
-        self._post_to_solr(data, 'delete')
+        self._post_to_solr(data, DELETE_ACTION)
 
     def _update_solr_document(self, storage_object, action):
         logger.info(f'  adding/updating {self.pid} in solr (action is {action})')
@@ -51,13 +56,20 @@ class Solrizer:
         #automatically queue a zip job if there's a ZIP file - the zip indexing code will check if we really need to index the zip contents
         if 'ZIP' in storage_object.active_file_names:
             queue_zip_job(self.pid, action=action)
+        if storage_object.is_image_child():
+            queue_image_parent_job(storage_object.parent_pid, action=action)
 
     def _index_zip(self, storage_object):
         logger.info(f'  indexing zip for {self.pid} in solr')
         existing_solr_doc = self._get_existing_solr_doc(self.pid)
         zip_file_data = ZipIndexer(storage_object, existing_solr_doc=existing_solr_doc).zip_index_data()
         if zip_file_data:
-            self._post_to_solr(zip_file_data, 'update')
+            self._post_to_solr(zip_file_data, ZIP_ACTION)
+
+    def _index_image_parent(self, storage_object):
+        logger.info(f'  indexing image parent flag for {self.pid} in solr')
+        data = json.dumps({'add': {'doc': {'pid': self.pid, 'image_parent_bsi': {'set': True}}}})
+        self._post_to_solr(data, IMAGE_PARENT_ACTION)
 
     def _queue_dependent_object_jobs(self, pid, action):
         query = f'rel_is_derivation_of_ssim:"{pid}"+OR+rel_is_part_of_ssim:"{pid}"'
@@ -71,7 +83,7 @@ class Solrizer:
 
     def _get_post_url(self, action):
         commitWithin = COMMIT_WITHIN
-        if action in ['add', 'delete']:
+        if action in [ADD_ACTION, DELETE_ACTION]:
             commitWithin = COMMIT_WITHIN_ADD
         return '%supdate/json?commitWithin=%s' % (self.solr_url, commitWithin)
 
@@ -98,7 +110,7 @@ class Solrizer:
         return {}
 
 
-def solrize(pid, action='add', solr_instance='7.4'):
+def solrize(pid, action=ADD_ACTION, solr_instance='7.4'):
     '''Log the pid & action before we do anything.
     Catch any exceptions & log them before re-raising so the job fails.'''
     logger.info(f'{pid} - {action} ({solr_instance})')
@@ -115,8 +127,19 @@ def index_zip(pid):
     logger.info(f'{pid} - index zip')
     try:
         solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
-        solrizer74.process(action='zip')
+        solrizer74.process(action=ZIP_ACTION)
     except Exception as e:
         import traceback
         logger.error('index zip job failure for %s:  %s' % (pid, traceback.format_exc()))
         raise Exception('%s index zip (%s) error: %s' % (datetime.now(), pid, repr(e)))
+
+
+def index_image_parent(pid):
+    logger.info(f'{pid} - index image parent')
+    try:
+        solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
+        solrizer74.process(action=IMAGE_PARENT_ACTION)
+    except Exception as e:
+        import traceback
+        logger.error('index image parent job failure for %s:  %s' % (pid, traceback.format_exc()))
+        raise Exception('%s index image parent (%s) error: %s' % (datetime.now(), pid, repr(e)))

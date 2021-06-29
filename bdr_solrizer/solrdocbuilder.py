@@ -7,7 +7,7 @@ from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
 from rdflib import Graph
-from bdrxml.rdfns import relsext as relsext_ns
+from bdrxml.rdfns import relsext as relsext_ns, model as model_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
     StorageIndexer,
@@ -172,6 +172,11 @@ class StorageObject:
     @property
     def ancestors(self):
         return [self.original_object, self.parent_object]
+
+    def is_image_child(self):
+        objects = list(self.rels_ext.objects(predicate=model_ns.hasModel))
+        if objects:
+            return True
 
     def get_file_contents(self, filename):
         cache_key = f'{self.pid}_{self._ocfl_object.head_version}_{filename}'
