@@ -21,23 +21,6 @@ from . import test_data
 OCFL_ROOT = os.environ['OCFL_ROOT']
 
 
-class MockStreamingResponse:
-    ok = True
-
-    def iter_content(self, chunk_size):
-        this_dir = Path(__file__).parent
-        zip_path = this_dir / 'test.zip'
-        f = zip_path.open(mode='rb')
-        def generate():
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-        chunks = generate()
-        return chunks
-
-
 class TestSolrizer(unittest.TestCase):
 
     def setUp(self):
