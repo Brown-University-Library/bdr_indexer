@@ -18,7 +18,7 @@ def configure_logging():
 
 def start_worker(queues=None):
     if not queues:
-        queues = [settings.HIGH_QUEUE, settings.MEDIUM_QUEUE, settings.LOW_QUEUE]
+        queues = [settings.HIGH, settings.MEDIUM, settings.LOW]
     with Connection():
         w = Worker(queues)
         pid = os.fork()
