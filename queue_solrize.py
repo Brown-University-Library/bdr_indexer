@@ -15,13 +15,10 @@ def send_error_email(msg):
     s.sendmail(f'bdr_indexer@{settings.SERVER}', [settings.NOTIFICATION_EMAIL_ADDRESS], email_msg.as_string())
 
 
-def main(pids, solr_instance, batch=True):
+def main(pids, priority=settings.LOW):
     for pid in pids:
         print(f'{pid} - ', end='')
-        if batch:
-            job = queues.queue_solrize_job(pid, action=settings.BATCH_ACTION)
-        else:
-            job = queues.queue_solrize_job(pid)
+        job = queues.queue_solrize_job(pid, priority=priority)
         print(job.id)
         if queues.FAILED_Q.count > 50:
             msg = f'Quitting because failed queue has {queues.FAILED_Q.count} messages.'
@@ -34,14 +31,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Queue indexing jobs')
     parser.add_argument('-p', '--pids', dest='pids', help='pid or list of pids separated by ","')
     parser.add_argument('-f', '--file', dest='file', help='file to read pids from (one pid on each line)')
-    parser.add_argument('-s', '--solr_instance', dest='solr_instance', default='7.4', help='solr instance to use: 6.4 or 7.4 (default)')
+    parser.add_argument('--priority', dest='priority', default=settings.LOW, help=f'priority of jobs (default: {settings.LOW})')
     args = parser.parse_args()
     if args.pids:
-        main(args.pids.split(','), args.solr_instance, batch=False)
+        main(args.pids.split(','), priority=args.priority)
     elif args.file:
         with open(args.file, 'rb') as f:
             pids = [line.strip().decode('utf8') for line in f.readlines()]
-            main(pids, args.solr_instance, batch=True)
+            main(pids, priority=args.priority)
     else:
         sys.exit('nothing to do')
-
