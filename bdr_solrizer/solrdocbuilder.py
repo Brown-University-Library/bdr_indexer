@@ -1,18 +1,13 @@
 import datetime
-import hashlib
 import io
 import json
-import os
-import tempfile
-import time
 import zipfile
 import redis
-import requests
 from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
 from rdflib import Graph
-from .rdfns import relsext as relsext_ns
+from bdrxml.rdfns import relsext as relsext_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
     StorageIndexer,
@@ -25,11 +20,10 @@ from .indexers import (
     parse_rdf_xml_into_graph,
 )
 from . import utils
-from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, TEMP_DIR, OCFL_ROOT
+from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT
 from .logger import logger
 
-FILES_EXPIRE_SECONDS = 60*5
-CONTENT_EXPIRE_SECONDS = 60*60
+CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 XML_NAMESPACES = {
     'mets': 'http://www.loc.gov/METS/'
@@ -74,59 +68,41 @@ class StorageObject:
         self.use_object_cache = use_object_cache
         self._ocfl_object = None
         try:
-            self._ocfl_object = ocfl.Object(self.pid)
+            self._ocfl_object = ocfl.Object(OCFL_ROOT, self.pid)
         except ocfl.ObjectNotFound:
-            pass
+            raise ObjectNotFound(f'{self.pid} not found')
         except ocfl.ObjectDeleted:
-            raise ObjectDeleted()
+            raise ObjectDeleted(f'{self.pid} deleted')
         self._active_file_names = None
         self._active_file_profiles = None
         self._rels_ext = None
-        self._files_response = None
-        if not self._ocfl_object:
-            #if we don't have an ocfl object, we need to go ahead and get files response, so we can raise errors if object isn't found or is deleted
-            self._files_response = self._get_files_response()
+        self._files_info = None
 
-    def _get_files_info_or_error(self, url):
-        if self._ocfl_object:
-            files_info = {}
-            files_info['object'] = {'created': self._ocfl_object.created, 'last_modified': self._ocfl_object.last_modified}
-            files_info['files'] = self._ocfl_object.get_files_info()
-            files_info['storage'] = 'ocfl'
-            logger.info(f'{self.pid} in ocfl {self._ocfl_object.object_path} - version {self._ocfl_object.head_version}')
-        else:
-            response = requests.get(url)
-            if response.status_code == 404:
-                raise ObjectNotFound()
-            if response.status_code == 410:
-                raise ObjectDeleted()
-            if not response.ok:
-                raise StorageError(f'{response.status_code} {response.text}')
-            files_info = response.json()
-            files_info['object']['created'] = utils.utc_datetime_from_string(files_info['object']['created'])
-            files_info['object']['last_modified'] = utils.utc_datetime_from_string(files_info['object']['lastModified'])
-            for file_info in files_info['files'].values():
-                file_info['last_modified'] = utils.utc_datetime_from_string(file_info['lastModified'])
-                file_info['checksum_type'] = file_info['checksumType']
-            logger.info(f'{self.pid} from storage server (location {files_info["storage"]}')
+    def _get_files_info_or_error(self):
+        files_info = {}
+        files_info['object'] = {'created': self._ocfl_object.created, 'last_modified': self._ocfl_object.last_modified}
+        files_info['files'] = self._ocfl_object.get_files_info(fields=['state', 'mimetype', 'size', 'checksum', 'checksumType', 'lastModified'])
+        files_info['storage'] = 'ocfl'
+        logger.info(f'{self.pid} {self._ocfl_object.object_path} - version {self._ocfl_object.head_version}')
         return files_info
 
-    def _get_files_response(self):
-        url = f'{STORAGE_SERVICE_ROOT}{self.pid}/files/?{STORAGE_SERVICE_PARAM}&objectTimestamps=true&fields=state,size,mimetype,checksum,lastModified'
+    def _get_files_info(self):
+        #set the cache key to the pid+version - if anything in the object gets updated, the key will change and we'll get a cache miss
+        cache_key = f'{self.pid}_{self._ocfl_object.head_version}'
         with Cache(CACHE_DIR) as object_cache:
-            files_info = object_cache.get(url, None) if self.use_object_cache else None
+            files_info = object_cache.get(cache_key, None) if self.use_object_cache else None
             if files_info:
                 logger.info(f'{self.pid} cached files info')
             else:
-                files_info = self._get_files_info_or_error(url)
-                object_cache.set(url, files_info, expire=FILES_EXPIRE_SECONDS)
+                files_info = self._get_files_info_or_error()
+                object_cache.set(cache_key, files_info, expire=CACHE_EXPIRE_SECONDS)
         return files_info
 
     @property
-    def files_response(self):
-        if not self._files_response:
-            self._files_response = self._get_files_response()
-        return self._files_response
+    def files_info(self):
+        if not self._files_info:
+            self._files_info = self._get_files_info()
+        return self._files_info
 
     @property
     def active_file_names(self):
@@ -139,19 +115,19 @@ class StorageObject:
 
     @property
     def all_file_names(self):
-        return list(self.files_response['files'].keys())
+        return list(self.files_info['files'].keys())
 
     @property
     def storage_location(self):
-        return self.files_response['storage']
+        return self.files_info['storage']
 
     @property
     def created(self):
-        return self.files_response['object']['created']
+        return self.files_info['object']['created']
 
     @property
     def modified(self):
-        return self.files_response['object']['last_modified']
+        return self.files_info['object']['last_modified']
 
     @property
     def rels_ext(self):
@@ -167,7 +143,7 @@ class StorageObject:
     def active_file_profiles(self):
         if not self._active_file_profiles:
             profiles = {}
-            for filename, file_profile in self.files_response['files'].items():
+            for filename, file_profile in self.files_info['files'].items():
                 if file_profile['state'] == 'A':
                     profiles[filename] = file_profile
             self._active_file_profiles = profiles
@@ -197,43 +173,30 @@ class StorageObject:
     def ancestors(self):
         return [self.original_object, self.parent_object]
 
-    def _get_file_contents_url(self, pid, filename):
-        return f'{STORAGE_SERVICE_ROOT}{pid}/files/{filename}/content/?{STORAGE_SERVICE_PARAM}'
-
     def get_file_contents(self, filename):
-        url = self._get_file_contents_url(self.pid, filename)
-        key = f"{self.modified}_{url}"
-
+        cache_key = f'{self.pid}_{self._ocfl_object.head_version}_{filename}'
         with Cache(CACHE_DIR) as content_cache:
-            content = content_cache.get(key, None)
+            content = content_cache.get(cache_key, None)
             if not content:
-                if self._ocfl_object:
-                    try:
-                        content_path = self._ocfl_object.get_path_to_file(filename)
-                        with open(content_path, 'rb') as f:
-                            content = f.read()
-                    except FileNotFoundError:
-                        raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
-                else:
-                    response = requests.get(url)
-                    if not response.ok:
-                        if response.status_code == 404:
-                            raise FileNotFoundError(f'{self.pid}/{filename} not found')
-                        else:
-                            raise StorageError(f'error getting {self.pid}/{filename} contents: {response.status_code} {response.text}')
-                    content = response.content
-                content_cache.set(key, content, expire=CONTENT_EXPIRE_SECONDS)
+                try:
+                    content_path = self._ocfl_object.get_path_to_file(filename)
+                    with open(content_path, 'rb') as f:
+                        content = f.read()
+                except FileNotFoundError:
+                    raise FileNotFoundError(f'{self.pid}/{filename} not found in ocfl repo')
+                content_cache.set(cache_key, content, expire=CACHE_EXPIRE_SECONDS)
             return content
 
     def get_file_contents_with_content_type(self, filename):
-        url = self._get_file_contents_url(self.pid, filename)
-        response = requests.get(url)
-        return response.content, response.headers['Content-Type']
+        mimetype = self.files_info['files'][filename]['mimetype']
+        contents = self.get_file_contents(filename)
+        if mimetype == 'application/octet-stream':
+            if contents[:5] == b'<?xml':
+                mimetype = 'text/xml'
+        return contents, mimetype
 
-    def get_file_contents_streaming_response(self, filename):
-        url = self._get_file_contents_url(self.pid, filename)
-        response = requests.get(url, stream=True)
-        return response
+    def get_path_to_file(self, filename):
+        return self._ocfl_object.get_path_to_file(filename)
 
     def get_metadata_bytes_to_index(self, ds_id):
         if ds_id in self.active_file_names:
@@ -381,7 +344,7 @@ class ZipIndexer:
             zip_filelist_timestamp = utils.utc_datetime_from_string(self.existing_solr_doc['zip_filelist_timestamp_dsi'])
             zip_ds_profile = self.storage_object.active_file_profiles.get('ZIP', None)
             if zip_ds_profile:
-                zip_ds_modified = zip_ds_profile['last_modified']
+                zip_ds_modified = zip_ds_profile['lastModified']
                 if zip_ds_modified <= zip_filelist_timestamp:
                     logger.debug(f'ZIP ds ({zip_ds_modified}) has already been indexed at {zip_filelist_timestamp}')
                     return False
@@ -392,21 +355,15 @@ class ZipIndexer:
     def zip_index_data(self):
         if not self._zip_index_needed():
             return
-        response = self.storage_object.get_file_contents_streaming_response('ZIP')
-        if not response.ok:
-            return
-        with tempfile.NamedTemporaryFile(dir=TEMP_DIR, mode='wb', delete=True) as f:
-            for chunk in response.iter_content(chunk_size=1024):
-                f.write(chunk)
-            f.flush()
-            zip_object = zipfile.ZipFile(f.name)
-            entry_names = [entry for entry in zip_object.namelist() if not entry.endswith('/')]
-            return json.dumps({
-                    'add': {
-                        'doc': {
-                            'pid': self.pid,
-                            'zip_filelist_ssim': {'set': sorted(entry_names)},
-                            'zip_filelist_timestamp_dsi': {'set': utils.utc_datetime_to_solr_string(datetime.datetime.utcnow())},
-                        },
-                    }
-                })
+        path = self.storage_object.get_path_to_file('ZIP')
+        zip_object = zipfile.ZipFile(path, mode='r')
+        entry_names = [entry for entry in zip_object.namelist() if not entry.endswith('/')]
+        return json.dumps({
+                'add': {
+                    'doc': {
+                        'pid': self.pid,
+                        'zip_filelist_ssim': {'set': sorted(entry_names)},
+                        'zip_filelist_timestamp_dsi': {'set': utils.utc_datetime_to_solr_string(datetime.datetime.utcnow())},
+                    },
+                }
+            })

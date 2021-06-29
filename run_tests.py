@@ -20,7 +20,6 @@ if __name__ == '__main__':
     os.environ['BDR_PUBLIC'] = 'public'
     with tempfile.TemporaryDirectory() as tmp:
         os.environ['CACHE_DIR'] = tmp
-        os.environ['TEMP_DIR'] = tmp
         os.environ['OCFL_ROOT'] = tmp
         loader = unittest.TestLoader()
         tests = loader.discover(start_dir='.')
