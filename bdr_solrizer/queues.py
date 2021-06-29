@@ -10,7 +10,7 @@ MEDIUM_PRIORITY_Q = Queue(settings.MEDIUM_QUEUE, connection=Redis())
 LOW_PRIORITY_Q = Queue(settings.LOW_QUEUE, connection=Redis())
 FAILED_Q = get_failed_queue(connection=Redis())
 
-def queue_solrize_job(pid, action='update', solr_instance='7.4'):
+def queue_solrize_job(pid, action=settings.ADD_ACTION, solr_instance='7.4'):
     queue = HIGH_PRIORITY_Q
     #put batch reindexing job on a lower-priority queue
     if action == settings.BATCH_ACTION:
@@ -19,9 +19,17 @@ def queue_solrize_job(pid, action='update', solr_instance='7.4'):
     return job
 
 
-def queue_zip_job(pid, action='update'):
+def queue_zip_job(pid, action=settings.ZIP_ACTION):
     queue = MEDIUM_PRIORITY_Q
     if action == settings.BATCH_ACTION:
         queue = LOW_PRIORITY_Q
     job = queue.enqueue_call(func=settings.INDEX_ZIP_FUNCTION, args=(pid,), timeout=2880)
+    return job
+
+
+def queue_image_parent_job(pid, action=settings.IMAGE_PARENT_ACTION):
+    queue = MEDIUM_PRIORITY_Q
+    if action == settings.BATCH_ACTION:
+        queue = LOW_PRIORITY_Q
+    job = queue.enqueue_call(func=settings.IMAGE_PARENT_FUNCTION, args=(pid,), timeout=2880)
     return job

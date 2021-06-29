@@ -61,6 +61,11 @@ class RelsExtIndexer:
             return reduced_content_models[0]
         return 'undetermined'
 
+    @staticmethod
+    def get_content_models_from_rels(rels):
+        models = [o for o in rels.objects(predicate=MODELS_NS.hasModel)]
+        return [str(model).split(':')[-1] for model in models]
+
     def _create_solr_field(self, term, prefix=""):
             return "rel_%s%s_ssim" % ( prefix, inflection.underscore(term))
 
@@ -77,8 +82,7 @@ class RelsExtIndexer:
     @property
     def content_models(self):
         if not self._content_models:
-            models = [o for o in self.rels.objects(predicate=MODELS_NS.hasModel)]
-            self._content_models = [str(model).split(':')[-1] for model in models]
+            self._content_models = RelsExtIndexer.get_content_models_from_rels(self.rels)
         return self._content_models
 
     @property
