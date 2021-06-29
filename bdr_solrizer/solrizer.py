@@ -9,7 +9,6 @@ from .settings import (
     COMMIT_WITHIN_ADD,
     ADD_ACTION,
     DELETE_ACTION,
-    BATCH_ACTION,
     ZIP_ACTION,
     IMAGE_PARENT_ACTION,
 )
