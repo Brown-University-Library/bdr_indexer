@@ -28,18 +28,20 @@ class Solrizer:
         else:
             try:
                 storage_object = StorageObject(self.pid)
-                if action == ZIP_ACTION:
-                    self._index_zip(storage_object)
-                elif action == IMAGE_PARENT_ACTION:
-                    self._index_image_parent(storage_object)
-                else:
-                    self._update_solr_document(storage_object, action)
             except ObjectNotFound:
                 #if object isn't in storage, it shouldn't be in solr either
                 self._delete_solr_document(self.pid)
+                return
             except ObjectDeleted:
-                if action != ZIP_ACTION:
-                    self._delete_solr_document(self.pid)
+                #if object is Deleted in storage, it shouldn't be in solr either
+                self._delete_solr_document(self.pid)
+                return
+            if action == ZIP_ACTION:
+                self._index_zip(storage_object)
+            elif action == IMAGE_PARENT_ACTION:
+                self._index_image_parent(storage_object)
+            else:
+                self._update_solr_document(storage_object, action)
 
     def _delete_solr_document(self, pid):
         logger.info(f'  deleting {pid} from solr')
