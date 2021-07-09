@@ -667,6 +667,7 @@ class ModsIndexer(CommonIndexer):
 
     def index_names(self):
         try:
+            has_creator_ssort = False
             for name in self.mods.names:
                 nameparts = [np.text for np in name.name_parts if not np.type]
                 roles = [role.text for role in name.roles
@@ -688,12 +689,15 @@ class ModsIndexer(CommonIndexer):
                             f'mods_role_{self._slugify(role)}_ssim',
                             namepart
                         )
-                        if role.endswith(u' place'):
+                        if role.endswith(' place'):
                             self.append_field('mods_name_place_ssim', namepart)
                         else:
                             self.append_field('mods_name_nonplace_ssim', namepart)
-                        if role == 'creator':
+                        if role.lower() == 'creator':
                             self.append_field('creator', namepart)
+                            if not has_creator_ssort:
+                                self.set_field('creator_ssort', namepart)
+                                has_creator_ssort = True
                         else:
                             self.append_field('contributor', namepart)
                     else:

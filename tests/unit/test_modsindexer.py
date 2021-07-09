@@ -372,6 +372,14 @@ class TestModsIndexer(unittest.TestCase):
                 ]
         )
         self.assertEqual(
+                index_data['creator'],
+                ['Smith, Tom']
+        )
+        self.assertEqual(
+                index_data['creator_ssort'],
+                'Smith, Tom'
+        )
+        self.assertEqual(
                 index_data['mods_name_place_ssim'],
                 [u'Providence, RI']
         )
