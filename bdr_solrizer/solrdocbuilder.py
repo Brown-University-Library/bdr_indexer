@@ -156,7 +156,11 @@ class StorageObject:
 
     @property
     def parent_object(self):
-        return StorageObject(self.parent_pid, use_object_cache=True) if self.parent_pid else None
+        if self.parent_pid:
+            try:
+                return StorageObject(self.parent_pid, use_object_cache=True)
+            except (ObjectNotFound, ObjectDeleted):
+                pass
 
     @property
     def original_pid(self):
@@ -166,7 +170,11 @@ class StorageObject:
 
     @property
     def original_object(self):
-        return StorageObject(self.original_pid, use_object_cache=True) if self.original_pid else None
+        if self.original_pid:
+            try:
+                return StorageObject(self.original_pid, use_object_cache=True)
+            except (ObjectNotFound, ObjectDeleted):
+                pass
 
     @property
     def ancestors(self):
