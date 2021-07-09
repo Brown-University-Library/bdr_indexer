@@ -66,7 +66,6 @@ class StorageObject:
     def __init__(self, pid, use_object_cache=False):
         self.pid = pid
         self.use_object_cache = use_object_cache
-        self._ocfl_object = None
         try:
             self._ocfl_object = ocfl.Object(OCFL_ROOT, self.pid)
         except ocfl.ObjectNotFound:

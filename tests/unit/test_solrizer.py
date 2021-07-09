@@ -141,7 +141,9 @@ class TestSolrizer(unittest.TestCase):
 
     def test_index_zip_object_deleted(self):
         test_utils.create_deleted_object(storage_root=OCFL_ROOT, pid=self.pid)
-        solrizer.index_zip(self.pid)
+        with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+            solrizer.index_zip(self.pid)
+        post_to_solr.assert_called_once_with(json.dumps({'delete': {'id': self.pid}}), 'delete')
 
     def test_index_image_parent(self):
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid)
