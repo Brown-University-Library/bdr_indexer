@@ -13,7 +13,7 @@ from .settings import (
     IMAGE_PARENT_ACTION,
 )
 from .solrdocbuilder import StorageObject, SolrDocBuilder, ZipIndexer, ObjectNotFound, ObjectDeleted
-from .queues import queue_solrize_job, queue_zip_job, queue_image_parent_job
+from .queues import queue_solrize_job
 
 
 class Solrizer:
@@ -56,9 +56,9 @@ class Solrizer:
         self._queue_dependent_object_jobs(self.pid, action)
         #automatically queue a zip job if there's a ZIP file - the zip indexing code will check if we really need to index the zip contents
         if 'ZIP' in storage_object.active_file_names:
-            queue_zip_job(self.pid, action=action)
+            queue_solrize_job(self.pid, action=ZIP_ACTION)
         if storage_object.is_image_child():
-            queue_image_parent_job(storage_object.parent_pid, action=action)
+            queue_solrize_job(storage_object.parent_pid, action=IMAGE_PARENT_ACTION)
 
     def _index_zip(self, storage_object):
         logger.info(f'  indexing zip for {self.pid} in solr')
@@ -114,14 +114,14 @@ class Solrizer:
 def solrize(pid, action=ADD_ACTION, solr_instance='7.4'):
     '''Log the pid & action before we do anything.
     Catch any exceptions & log them before re-raising so the job fails.'''
-    logger.info(f'{pid} - {action} ({solr_instance})')
+    logger.info(f'{pid} - {action}')
     try:
         solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
         solrizer74.process(action)
     except Exception as e:
         import traceback
-        logger.error('solrize job failure for %s:  %s' % (pid, traceback.format_exc()))
-        raise Exception('%s solrize(%s) error: %s' % (datetime.now(), pid, repr(e)))
+        logger.error(f'{pid} {action} failed:  {traceback.format_exc()}')
+        raise Exception(f'{datetime.now()} {pid} {action} error: {e}')
 
 
 def index_zip(pid):

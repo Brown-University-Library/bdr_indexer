@@ -15,10 +15,10 @@ def send_error_email(msg):
     s.sendmail(f'bdr_indexer@{settings.SERVER}', [settings.NOTIFICATION_EMAIL_ADDRESS], email_msg.as_string())
 
 
-def main(pids, priority):
+def main(pids, action, priority):
     for pid in pids:
         print(f'{pid} - ', end='')
-        job = queues.queue_solrize_job(pid, priority=priority)
+        job = queues.queue_solrize_job(pid, action=action, priority=priority)
         print(job.id)
         if queues.FAILED_Q.count > 50:
             msg = f'Quitting because failed queue has {queues.FAILED_Q.count} messages.'
@@ -40,14 +40,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Queue indexing jobs')
     parser.add_argument('-p', '--pids', dest='pids', help='pid or list of pids separated by ","')
     parser.add_argument('-f', '--file', dest='file', help='file to read pids from (one pid on each line)')
+    parser.add_argument('--action', dest='action', default=settings.ADD_ACTION, help=f'action to perform (default: {settings.ADD_ACTION}) (other options: {settings.DELETE_ACTION}, {settings.ZIP_ACTION}, {settings.IMAGE_PARENT_ACTION})')
     parser.add_argument('--priority', dest='priority', default=settings.LOW, help=f'priority of jobs (default: {settings.LOW})')
     args = parser.parse_args()
 
     if args.pids:
-        main(args.pids.split(','), priority=args.priority)
+        main(args.pids.split(','), action=args.action, priority=args.priority)
     elif args.file:
         with open(args.file, 'rb') as f:
             pids = [line.strip().decode('utf8') for line in f.readlines()]
-            main(pids, priority=args.priority)
+            main(pids, action=args.action, priority=args.priority)
     else:
         sys.exit('nothing to do')
