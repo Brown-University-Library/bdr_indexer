@@ -130,25 +130,25 @@ class TestSolrizer(unittest.TestCase):
         with patch('bdr_solrizer.solrizer.Solrizer._get_existing_solr_doc') as solr_doc_mock:
             solr_doc_mock.return_value = {'pid': self.pid, 'zip_filelist_timestamp_dsi': '2010-01-25T12:34:12Z'}
             with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-                solrizer.index_zip(self.pid)
+                solrizer.solrize(self.pid, action=settings.ZIP_ACTION)
             actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
             self.assertEqual(actual_solr_doc['add']['doc']['zip_filelist_ssim'], {'set': ['test.txt']})
 
     def test_index_zip_object_not_found(self):
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-            solrizer.index_zip(self.pid)
+            solrizer.solrize(self.pid, action=settings.ZIP_ACTION)
         post_to_solr.assert_called_once_with(json.dumps({'delete': {'id': self.pid}}), 'delete')
 
     def test_index_zip_object_deleted(self):
         test_utils.create_deleted_object(storage_root=OCFL_ROOT, pid=self.pid)
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-            solrizer.index_zip(self.pid)
+            solrizer.solrize(self.pid, action=settings.ZIP_ACTION)
         post_to_solr.assert_called_once_with(json.dumps({'delete': {'id': self.pid}}), 'delete')
 
     def test_index_image_parent(self):
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid)
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-            solrizer.index_image_parent(self.pid)
+            solrizer.solrize(self.pid, action=settings.IMAGE_PARENT_ACTION)
         post_to_solr.assert_called_once_with(json.dumps({'add': {'doc': {'pid': self.pid, 'image_parent_bsi': {'set': True}}}}), 'image_parent')
 
 

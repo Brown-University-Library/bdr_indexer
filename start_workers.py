@@ -41,5 +41,3 @@ if __name__ == '__main__':
 
     for i in range(5):
         start_worker()
-    #also start a worker to handle the old queue names, till everything is switched over
-    start_worker(queues=('solrizer', 'solrizer_zip', 'index', 're-index', 'index-zip'))
