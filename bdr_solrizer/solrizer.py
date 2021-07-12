@@ -122,25 +122,3 @@ def solrize(pid, action=ADD_ACTION, solr_instance='7.4'):
         import traceback
         logger.error(f'{pid} {action} failed:  {traceback.format_exc()}')
         raise Exception(f'{datetime.now()} {pid} {action} error: {e}')
-
-
-def index_zip(pid):
-    logger.info(f'{pid} - index zip')
-    try:
-        solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
-        solrizer74.process(action=ZIP_ACTION)
-    except Exception as e:
-        import traceback
-        logger.error('index zip job failure for %s:  %s' % (pid, traceback.format_exc()))
-        raise Exception('%s index zip (%s) error: %s' % (datetime.now(), pid, repr(e)))
-
-
-def index_image_parent(pid):
-    logger.info(f'{pid} - index image parent')
-    try:
-        solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
-        solrizer74.process(action=IMAGE_PARENT_ACTION)
-    except Exception as e:
-        import traceback
-        logger.error('index image parent job failure for %s:  %s' % (pid, traceback.format_exc()))
-        raise Exception('%s index image parent (%s) error: %s' % (datetime.now(), pid, repr(e)))
