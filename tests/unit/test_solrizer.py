@@ -55,7 +55,7 @@ class TestSolrizer(unittest.TestCase):
         now = datetime.datetime.now(datetime.timezone.utc)
         with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
             with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-                with patch('bdr_solrizer.solrizer.queue_image_parent_job') as queue_image_parent_job:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
                     solrizer.solrize(self.pid)
         actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
         self.assertEqual(sorted(actual_solr_doc['add']['doc']['all_ds_ids_ssim']), expected_file_names)
@@ -67,7 +67,7 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc']['storage_location_ssi'], 'ocfl')
         self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
         self.assertEqual(sorted(list(json.loads(actual_solr_doc['add']['doc']['datastreams_ssi']).keys())), expected_file_names)
-        queue_image_parent_job.assert_not_called()
+        queue_job.assert_not_called()
 
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'
@@ -90,11 +90,11 @@ class TestSolrizer(unittest.TestCase):
                 ])
         with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
             with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-                with patch('bdr_solrizer.solrizer.queue_image_parent_job') as queue_image_parent_job:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
                     solrizer.solrize(self.pid)
                     actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
             self.assertEqual(actual_solr_doc['add']['doc']['primary_title'], 'parent title')
-            queue_image_parent_job.assert_called_once_with('testsuite:2', action='add')
+            queue_job.assert_called_once_with(parent_pid, action=settings.IMAGE_PARENT_ACTION)
 
     def test_solrize_object_not_found(self):
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
@@ -114,9 +114,9 @@ class TestSolrizer(unittest.TestCase):
                 ])
         with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
             with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
-                with patch('bdr_solrizer.solrizer.queue_image_parent_job') as queue_image_parent_job:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
                     solrizer.solrize(self.pid)
-        queue_image_parent_job.assert_not_called()
+        queue_job.assert_not_called()
 
     def test_index_zip(self):
         zip_buffer = io.BytesIO()
