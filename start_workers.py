@@ -2,7 +2,9 @@ import logging
 import os
 from os.path import dirname, abspath, join
 import sys
+import time
 import dotenv
+import redis
 from rq import Connection, Worker
 
 
@@ -23,7 +25,11 @@ def start_worker(queues=None):
         w = Worker(queues)
         pid = os.fork()
         if pid == 0: #in the child process, we want to run the work() function & then exit
-            w.work()
+            try:
+                w.work()
+            except redis.exceptions.BusyLoadingError: #redis is still starting up
+                time.sleep(30)
+                w.work()
             os._exit(0)
 
 
