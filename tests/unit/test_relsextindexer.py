@@ -1,9 +1,11 @@
 from io import BytesIO
 import unittest
-from rdflib import Graph, URIRef
+from rdflib import Graph, URIRef, Literal, Namespace
 from rdflib.namespace import RDF
 from bdr_solrizer.indexers import RelsExtIndexer
 from .test_data import SIMPLE_RELS_EXT_XML, RELS_EXT_XML
+
+BUL_NS = Namespace(URIRef("http://library.brown.edu/#"))
 
 
 class TestRelsExt(unittest.TestCase):
@@ -47,6 +49,12 @@ class TestRelsExt(unittest.TestCase):
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'masterImage', 'jp2']), 'image')
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'jpg']), 'image')
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'png']), 'image')
+
+    def test_resource_type(self):
+        rels = Graph()
+        rels.add( (URIRef('info:fedora/testsuite:abcd1234'), BUL_NS.resourceType, Literal('databases')) )
+        indexed_data = RelsExtIndexer(rels=rels).index_data()
+        self.assertEqual(indexed_data['rel_resource_type_ssi'], 'databases')
 
     def test_old_pagination(self):
         rels_ext_xml = '''<?xml version="1.0" encoding="UTF-8"?>
