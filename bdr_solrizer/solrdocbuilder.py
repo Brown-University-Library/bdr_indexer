@@ -20,7 +20,7 @@ from .indexers import (
     parse_rdf_xml_into_graph,
 )
 from . import utils
-from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT
+from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT, DATE_FIELD
 from .logger import logger
 
 CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
@@ -335,6 +335,11 @@ class SolrDocBuilder:
         self._add_all_fields(doc,
             self.descriptive_data()
         )
+
+        #fallback to object created date for general date field, if nothing has been added yet
+        if DATE_FIELD not in doc:
+            doc[DATE_FIELD] = doc['object_created_dsi']
+
         return json.dumps({'add': {'doc': doc}})
 
     def _get_extracted_text_for_indexing(self, ds_id):
