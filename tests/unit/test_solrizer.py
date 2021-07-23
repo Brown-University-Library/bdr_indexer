@@ -94,6 +94,7 @@ class TestSolrizer(unittest.TestCase):
                     solrizer.solrize(self.pid)
                     actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
             self.assertEqual(actual_solr_doc['add']['doc']['primary_title'], 'parent title')
+            self.assertEqual(actual_solr_doc['add']['doc'][settings.IIIF_RESOURCE_FIELD], True)
             queue_job.assert_called_once_with(parent_pid, action=settings.IMAGE_PARENT_ACTION)
 
     def test_solrize_object_not_found(self):
@@ -149,7 +150,14 @@ class TestSolrizer(unittest.TestCase):
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid)
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
             solrizer.solrize(self.pid, action=settings.IMAGE_PARENT_ACTION)
-        post_to_solr.assert_called_once_with(json.dumps({'add': {'doc': {'pid': self.pid, 'image_parent_bsi': {'set': True}}}}), 'image_parent')
+        image_parent_doc = {
+            'add':
+                {'doc': {
+                    'pid': self.pid,
+                    settings.IMAGE_PARENT_FIELD: {'set': True},
+                    settings.IIIF_RESOURCE_FIELD: {'set': True}}}
+        }
+        post_to_solr.assert_called_once_with(json.dumps(image_parent_doc), 'image_parent')
 
 
 class TestSolrDocBuilder(unittest.TestCase):
