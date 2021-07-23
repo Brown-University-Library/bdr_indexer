@@ -22,7 +22,7 @@ class CommonIndexer:
 
     def __init__(self, xml_obj):
         self.xml = xml_obj
-        self.data=collections.defaultdict(list)
+        self.data = collections.defaultdict(list)
 
     def _full_field_name(self, field_name):
         if self.PREFIX:

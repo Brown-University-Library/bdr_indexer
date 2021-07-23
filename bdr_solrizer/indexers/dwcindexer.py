@@ -1,5 +1,6 @@
 from eulxml.xmlmap import load_xmlobject_from_string
 from bdrxml import darwincore
+from .. import settings, utils
 
 
 class SimpleDarwinRecordIndexer:
@@ -15,12 +16,18 @@ class SimpleDarwinRecordIndexer:
         data = {}
         #grab all the DWC fields to index
         for field in self.dwc._fields.keys():
-            if getattr(self.dwc, field):
-                if field.endswith(u'_'):
-                    field_name = u'dwc_%sssi' % field
+            field_value = getattr(self.dwc, field)
+            if field_value:
+                if field.endswith('_'):
+                    field_name = f'dwc_{field}ssi'
                 else:
-                    field_name = u'dwc_%s_ssi' % field
-                data[field_name] =  u'%s' % getattr(self.dwc, field)
+                    field_name = f'dwc_{field}_ssi'
+                data[field_name] =  str(field_value)
+                #set eventDate/event_date as the general date for this object
+                if field == 'event_date':
+                    solr_date = utils.get_solr_date(field_value)
+                    if solr_date:
+                        data[settings.DATE_FIELD] = str(solr_date)
         taxon_rank_abbr = self._get_taxon_rank_abbr()
         if taxon_rank_abbr:
             data['dwc_taxon_rank_abbr_ssi'] = taxon_rank_abbr

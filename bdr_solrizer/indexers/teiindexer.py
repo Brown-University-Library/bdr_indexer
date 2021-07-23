@@ -1,6 +1,7 @@
 from eulxml.xmlmap import load_xmlobject_from_string
 from eulxml.xmlmap.teimap import Tei
 from .common import CommonIndexer, XPathMapper
+from .. import settings, utils
 
 class TEIIndexer(CommonIndexer):
     PREFIX='tei'
@@ -92,6 +93,10 @@ class TEIIndexer(CommonIndexer):
 
     def index_dates(self):
         self.append_all_mappers(self.DATE_MAP)
+        if ('date_display_ssi' in self.data) and (settings.DATE_FIELD not in self.data):
+            solr_date = utils.get_solr_date(self.data['date_display_ssi'])
+            if solr_date:
+                self.data[settings.DATE_FIELD] = str(solr_date)
         return self
 
     ID_MAP = [

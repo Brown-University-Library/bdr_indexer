@@ -62,19 +62,19 @@ class SolrDate:
 
 
 def get_solr_date(date_str):
-        #try to construct a valid date string for solr
-        # if not, return None and date will go into string field
-        solr_date_string = None
-        try:
-            if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
-                dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
-                solr_date_string = date_str + 'T00:00:00Z'
-            elif re.match(r'^\d{4}-\d{2}$', date_str):
-                dt = datetime.datetime.strptime(date_str, '%Y-%m')
-                solr_date_string = date_str + '-01T00:00:00Z'
-            elif re.match(r'^\d{4}$', date_str):
-                dt = datetime.datetime.strptime(date_str, '%Y')
-                solr_date_string = date_str + '-01-01T00:00:00Z'
-        except ValueError:
-            pass
-        return SolrDate(solr_date_string)
+    #try to construct a valid date string for solr
+    # if not, return None and date will go into string field
+    solr_date_string = None
+    try:
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+            dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+            solr_date_string = date_str + 'T00:00:00Z'
+        elif re.match(r'^\d{4}-\d{2}$', date_str):
+            dt = datetime.datetime.strptime(date_str, '%Y-%m')
+            solr_date_string = date_str + '-01T00:00:00Z'
+        elif re.match(r'^\d{4}$', date_str):
+            dt = datetime.datetime.strptime(date_str, '%Y')
+            solr_date_string = date_str + '-01-01T00:00:00Z'
+    except ValueError:
+        pass
+    return SolrDate(solr_date_string)

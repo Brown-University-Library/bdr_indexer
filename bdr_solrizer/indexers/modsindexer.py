@@ -5,6 +5,7 @@ import roman
 from eulxml.xmlmap import load_xmlobject_from_string
 from bdrxml import mods
 from .common import CommonIndexer
+from .. import settings
 
 
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
@@ -76,6 +77,9 @@ class ModsIndexer(CommonIndexer):
                             'mods_dateAll_year_ssim', [solr_date.year]
                     )
                     self.data[date_name] = str(solr_date)
+
+                if solr_date and settings.DATE_FIELD not in self.data:
+                    self.data[settings.DATE_FIELD] = str(solr_date)
 
                 # some special facets handling for dateOther
                 if date_name == 'dateOther':
