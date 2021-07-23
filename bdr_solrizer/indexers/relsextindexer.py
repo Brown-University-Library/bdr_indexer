@@ -7,6 +7,8 @@ from bdrxml.rdfns import (
     relsext as RELS_EXT_NS,
     model as MODELS_NS,
 )
+from .. import settings
+
 INDEXED_DCTERMS = [
     'isVersionOf',
 ]
@@ -173,6 +175,8 @@ class RelsExtIndexer:
             'object_type': self.object_type,
             'stream_uri_s': self.stream_uri,
         }
+        if self.object_type == 'image':
+            in_data[settings.IIIF_RESOURCE_FIELD] = True
         in_data.update(self.index_rels_ext())
         in_data.update(self.index_dcterms())
         in_data.update(self._index_rdf_type())

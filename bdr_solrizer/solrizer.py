@@ -11,6 +11,8 @@ from .settings import (
     DELETE_ACTION,
     ZIP_ACTION,
     IMAGE_PARENT_ACTION,
+    IMAGE_PARENT_FIELD,
+    IIIF_RESOURCE_FIELD,
 )
 from .solrdocbuilder import StorageObject, SolrDocBuilder, ZipIndexer, ObjectNotFound, ObjectDeleted
 from .queues import queue_solrize_job
@@ -69,7 +71,16 @@ class Solrizer:
 
     def _index_image_parent(self, storage_object):
         logger.info(f'  indexing image parent flag for {self.pid} in solr')
-        data = json.dumps({'add': {'doc': {'pid': self.pid, 'image_parent_bsi': {'set': True}}}})
+        doc = {
+            'add': {
+                'doc': {
+                    'pid': self.pid,
+                    IMAGE_PARENT_FIELD: {'set': True},
+                    IIIF_RESOURCE_FIELD: {'set': True},
+                }
+            }
+        }
+        data = json.dumps(doc)
         self._post_to_solr(data, IMAGE_PARENT_ACTION)
 
     def _queue_dependent_object_jobs(self, pid, action):
