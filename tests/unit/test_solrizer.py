@@ -38,6 +38,7 @@ class TestSolrizer(unittest.TestCase):
         dwc_obj.create_simple_darwin_record()
         dwc_obj.simple_darwin_record.catalog_number = 'catalog number'
         dwc_obj.simple_darwin_record.event_date = '2005-06'
+        dwc_obj.simple_darwin_record.basis_of_record = 'PreservedSpecimen'
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
                 files=[
                     ('PDF', b'1234'),
@@ -48,9 +49,8 @@ class TestSolrizer(unittest.TestCase):
                     ('EXTRACTED_TEXT', test_data.OCR_XML.encode('utf8')),
                     ('FITS', test_data.SPARSE_FITS_XML.encode('utf8')),
                     ('DWC', dwc_obj.serialize()),
-                    ('TEI', test_data.TEI_IIP_SAMPLE.encode('utf8')),
                 ])
-        expected_file_names = ['DWC', 'EXTRACTED_TEXT', 'FITS', 'PDF', 'RELS-EXT', 'RELS-INT', 'TEI', 'irMetadata', 'rightsMetadata']
+        expected_file_names = ['DWC', 'EXTRACTED_TEXT', 'FITS', 'PDF', 'RELS-EXT', 'RELS-INT', 'irMetadata', 'rightsMetadata']
         expected_extracted_text = '1900-01-04 VOL. IX. No. 72 PROVIDENCE, THURSDAY, JANUARY 4, 1900 Price Three Cents. Brown Daily Herald'
         now = datetime.datetime.now(datetime.timezone.utc)
         with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
@@ -66,12 +66,31 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc']['object_created_dsi'], '2018-10-01T12:24:59.123456Z')
         self.assertEqual(actual_solr_doc['add']['doc'][settings.DATE_FIELD], '2005-06-01T00:00:00Z')
         self.assertEqual(actual_solr_doc['add']['doc']['storage_location_ssi'], 'ocfl')
-        self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'realia')
         self.assertEqual(sorted(list(json.loads(actual_solr_doc['add']['doc']['datastreams_ssi']).keys())), expected_file_names)
         queue_job.assert_not_called()
 
+    def test_dwc_no_basis_of_record(self):
+        self.maxDiff = None
+        dwc_obj = darwincore.make_simple_darwin_record_set()
+        dwc_obj.create_simple_darwin_record()
+        dwc_obj.simple_darwin_record.catalog_number = 'catalog number'
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('PDF', b'1234'),
+                    ('RELS-EXT', test_data.SIMPLE_RELS_EXT_XML.encode('utf8')),
+                    ('DWC', dwc_obj.serialize()),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
+                    solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'other')
+
     def test_solrize_mods(self):
         mods_obj = mods.make_mods()
+        mods_obj.resource_types.append(mods.ResourceType(text='maps'))
         mods_obj.create_origin_info()
         mods_obj.origin_info.created.append(mods.DateCreated(date='2002-03-04'))
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
@@ -84,6 +103,35 @@ class TestSolrizer(unittest.TestCase):
         actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
         self.assertEqual(sorted(actual_solr_doc['add']['doc']['all_ds_ids_ssim']), ['MODS'])
         self.assertEqual(actual_solr_doc['add']['doc'][settings.DATE_FIELD], '2002-03-04T00:00:00Z')
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'maps')
+
+    def test_mods_non_primo_resource_type(self):
+        mods_obj = mods.make_mods()
+        mods_obj.resource_types.append(mods.ResourceType(text='text'))
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('MODS', mods_obj.serialize()),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'other')
+
+    def test_tei(self):
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('rightsMetadata', rights.make_rights().serialize()),
+                    ('RELS-EXT', test_data.SIMPLE_RELS_EXT_XML.encode('utf8')),
+                    ('TEI', test_data.TEI_IIP_SAMPLE.encode('utf8')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
+                    solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'text_resources')
 
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'

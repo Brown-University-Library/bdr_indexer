@@ -20,7 +20,7 @@ from .indexers import (
     parse_rdf_xml_into_graph,
 )
 from . import utils
-from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT, DATE_FIELD
+from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT, DATE_FIELD, RESOURCE_TYPE_FIELD
 from .logger import logger
 
 CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
@@ -220,6 +220,42 @@ class StorageObject:
                 return ancestor.get_file_contents( ds_id)
 
 
+#resource types taken from Primo:
+#https://knowledge.exlibrisgroup.com/Primo/Product_Documentation/020Primo_VE/Primo_VE_(English)/100Loading_Records_from_External_Sources_into_Primo_VE/Configuring_Normalization_Rules_for_External_Resources_(Primo_VE)
+VALID_RESOURCE_TYPES = [
+        'databases',
+        'audios',
+        'newspapers',
+        'manuscripts',
+        'conference_proceedings',
+        'dissertations',
+        'kits',
+        'other',
+        'archival_materials',
+        'realia',
+        'books',
+        'book_chapters',
+        'collections',
+        'legal_documents',
+        'patents',
+        'reference_entrys',
+        'research_datasets',
+        'reviews',
+        'statistical_data_sets',
+        'technical_reports',
+        'journals',
+        'newspaper_articles',
+        'articles',
+        'text_resources',
+        'government_documents',
+        'images',
+        'maps',
+        'videos',
+        'scores',
+        'websites',
+    ]
+
+
 class SolrDocBuilder:
 
     def __init__(self, storage_object):
@@ -339,6 +375,17 @@ class SolrDocBuilder:
         #fallback to object created date for general date field, if nothing has been added yet
         if DATE_FIELD not in doc:
             doc[DATE_FIELD] = doc['object_created_dsi']
+
+        #populate resource_type_ssi field
+        if RESOURCE_TYPE_FIELD not in doc:
+            if 'dwc_basis_of_record_ssi' in doc and doc['dwc_basis_of_record_ssi'] == 'PreservedSpecimen':
+                doc[RESOURCE_TYPE_FIELD] = 'realia'
+            elif 'mods_type_of_resource' in doc and doc['mods_type_of_resource'][0] in VALID_RESOURCE_TYPES:
+                doc[RESOURCE_TYPE_FIELD] = doc['mods_type_of_resource'][0]
+            elif 'TEI' in self.storage_object.active_file_names and 'MODS' not in self.storage_object.active_file_names:
+                doc[RESOURCE_TYPE_FIELD] = 'text_resources'
+            else:
+                doc[RESOURCE_TYPE_FIELD] = 'other'
 
         return json.dumps({'add': {'doc': doc}})
 

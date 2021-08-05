@@ -50,12 +50,6 @@ class TestRelsExt(unittest.TestCase):
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'jpg']), 'image')
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'png']), 'image')
 
-    def test_resource_type(self):
-        rels = Graph()
-        rels.add( (URIRef('info:fedora/testsuite:abcd1234'), BUL_NS.resourceType, Literal('databases')) )
-        indexed_data = RelsExtIndexer(rels=rels).index_data()
-        self.assertEqual(indexed_data['rel_resource_type_ssi'], 'databases')
-
     def test_old_pagination(self):
         rels_ext_xml = '''<?xml version="1.0" encoding="UTF-8"?>
         <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:bul-rel="http://library.brown.edu/#" xmlns:fedora-model="info:fedora/fedora-system:def/model#">
