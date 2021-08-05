@@ -143,7 +143,6 @@ class RelsExtIndexer:
         mapping = {
                 'rel_display_label_ssi': self.BUL_NS.displayLabel,
                 'rel_panopto_id_ssi': self.BUL_NS.panoptoId,
-                'rel_resource_type_ssi': self.BUL_NS.resourceType
             }
         info = {}
 
