@@ -108,9 +108,22 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc'][settings.DATE_FIELD], '2002-03-04T00:00:00Z')
         self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'maps')
 
-    def test_mods_non_primo_resource_type(self):
+    def test_mods_resource_type_mapped_to_primo(self):
         mods_obj = mods.make_mods()
         mods_obj.resource_types.append(mods.ResourceType(text='text'))
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('MODS', mods_obj.serialize()),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'text_resources')
+
+    def test_mods_random_resource_type(self):
+        mods_obj = mods.make_mods()
+        mods_obj.resource_types.append(mods.ResourceType(text='zzzz'))
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
                 files=[
                     ('MODS', mods_obj.serialize()),

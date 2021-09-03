@@ -40,6 +40,55 @@ XML_NAMESPACES = {
 }
 
 
+#resource types taken from Primo:
+#https://knowledge.exlibrisgroup.com/Primo/Product_Documentation/020Primo_VE/Primo_VE_(English)/100Loading_Records_from_External_Sources_into_Primo_VE/Configuring_Normalization_Rules_for_External_Resources_(Primo_VE)
+VALID_RESOURCE_TYPES = [
+        'archival_materials',
+        'articles',
+        'audios',
+        'book_chapters',
+        'books',
+        'collections',
+        'conference_proceedings',
+        'databases',
+        'dissertations',
+        'government_documents',
+        'images',
+        'journals',
+        'kits',
+        'legal_documents',
+        'manuscripts',
+        'maps',
+        'newspaper_articles',
+        'newspapers',
+        'other',
+        'patents',
+        'realia',
+        'reference_entrys',
+        'research_datasets',
+        'reviews',
+        'scores',
+        'statistical_data_sets',
+        'technical_reports',
+        'text_resources',
+        'videos',
+        'websites',
+    ]
+
+#rough mapping from typeOfResource values to a Primo resource type
+PRIMO_RESOURCE_TYPE_MAPPING = {
+        'text': 'text_resources',
+        'still image': 'images',
+        'notated music': 'scores',
+        'moving image': 'videos',
+        'three dimensional object': 'realia',
+        'sound recording-nonmusical': 'audios',
+        'cartographic': 'maps',
+        'sound recording': 'audios',
+        'sound recording-musical': 'audios',
+        'graphic materials': 'images',
+    }
+
 class ObjectNotFound(RuntimeError):
     pass
 
@@ -238,42 +287,6 @@ class StorageObject:
                 return ancestor.get_file_contents( ds_id)
 
 
-#resource types taken from Primo:
-#https://knowledge.exlibrisgroup.com/Primo/Product_Documentation/020Primo_VE/Primo_VE_(English)/100Loading_Records_from_External_Sources_into_Primo_VE/Configuring_Normalization_Rules_for_External_Resources_(Primo_VE)
-VALID_RESOURCE_TYPES = [
-        'archival_materials',
-        'articles',
-        'audios',
-        'book_chapters',
-        'books',
-        'collections',
-        'conference_proceedings',
-        'databases',
-        'dissertations',
-        'government_documents',
-        'images',
-        'journals',
-        'kits',
-        'legal_documents',
-        'manuscripts',
-        'maps',
-        'newspaper_articles',
-        'newspapers',
-        'other',
-        'patents',
-        'realia',
-        'reference_entrys',
-        'research_datasets',
-        'reviews',
-        'scores',
-        'statistical_data_sets',
-        'technical_reports',
-        'text_resources',
-        'videos',
-        'websites',
-    ]
-
-
 class SolrDocBuilder:
 
     def __init__(self, storage_object):
@@ -407,7 +420,9 @@ class SolrDocBuilder:
                 if db_resource_type:
                     doc[RESOURCE_TYPE_FIELD] = db_resource_type
                 else:
-                    doc[RESOURCE_TYPE_FIELD] = 'other'
+                    mods_type_of_resource = doc.get('mods_type_of_resource', ['other'])
+                    resource_type = PRIMO_RESOURCE_TYPE_MAPPING.get(mods_type_of_resource[0].lower(), 'other')
+                    doc[RESOURCE_TYPE_FIELD] = resource_type
 
         return json.dumps({'add': {'doc': doc}})
 
