@@ -6,7 +6,7 @@ def generate_sqlite(csv_path, sqlite_path):
         data = f.read().decode('utf8')
     db = sqlite3.connect(sqlite_path)
     cursor = db.cursor()
-    cursor.execute('CREATE TABLE resource_types (pid TEXT NOT NULL, resource_type TEXT NOT NULL)')
+    cursor.execute('CREATE TABLE resource_types (pid TEXT NOT NULL UNIQUE, resource_type TEXT NOT NULL)')
     db.commit()
     #make sure the line isn't empty, and skip the first header line
     for line in [line for line in data.split('\n') if line.strip()][1:]:

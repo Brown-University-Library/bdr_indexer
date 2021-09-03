@@ -1,6 +1,7 @@
 import datetime
 import io
 import json
+import sqlite3
 import zipfile
 import redis
 from lxml import etree
@@ -20,7 +21,16 @@ from .indexers import (
     parse_rdf_xml_into_graph,
 )
 from . import utils
-from .settings import COLLECTION_URL, CACHE_DIR, STORAGE_SERVICE_ROOT, STORAGE_SERVICE_PARAM, OCFL_ROOT, DATE_FIELD, RESOURCE_TYPE_FIELD
+from .settings import (
+        COLLECTION_URL,
+        CACHE_DIR,
+        STORAGE_SERVICE_ROOT,
+        STORAGE_SERVICE_PARAM,
+        OCFL_ROOT,
+        DATE_FIELD,
+        RESOURCE_TYPE_FIELD,
+        RESOURCE_TYPES_DB_NAME,
+    )
 from .logger import logger
 
 CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
@@ -41,6 +51,17 @@ class FileNotFound(RuntimeError):
 
 class StorageError(RuntimeError):
     pass
+
+
+def get_resource_type_from_db(pid):
+    try:
+        resource_types_db = sqlite3.connect(RESOURCE_TYPES_DB_NAME)
+        cursor = resource_types_db.cursor()
+        db_records = cursor.execute('SELECT resource_type FROM resource_types WHERE pid = ?', (pid,)).fetchall()
+        if db_records and db_records[0] and db_records[0][0]:
+            return db_records[0][0]
+    except Exception as e:
+        logger.warning(f'resource types db error: {e}')
 
 
 def _process_extracted_text(data, content_type):
@@ -382,7 +403,11 @@ class SolrDocBuilder:
             elif 'TEI' in self.storage_object.active_file_names and 'MODS' not in self.storage_object.active_file_names:
                 doc[RESOURCE_TYPE_FIELD] = 'text_resources'
             else:
-                doc[RESOURCE_TYPE_FIELD] = 'other'
+                db_resource_type = get_resource_type_from_db(self.pid)
+                if db_resource_type:
+                    doc[RESOURCE_TYPE_FIELD] = db_resource_type
+                else:
+                    doc[RESOURCE_TYPE_FIELD] = 'other'
 
         return json.dumps({'add': {'doc': doc}})
 

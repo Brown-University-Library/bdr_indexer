@@ -31,6 +31,7 @@ LOW = 'low'
 INDEX_ZIP_FUNCTION= 'bdr_solrizer.solrizer.index_zip'
 DATE_FIELD = 'date_dsi'
 RESOURCE_TYPE_FIELD = 'resource_type_ssi'
+RESOURCE_TYPES_DB_NAME = get_env_variable('RESOURCE_TYPES_DB_NAME')
 IIIF_RESOURCE_FIELD = 'iiif_resource_bsi'
 IMAGE_PARENT_FIELD = 'image_parent_bsi'
 BDR_BROWN = get_env_variable('BDR_BROWN')
