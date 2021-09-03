@@ -106,15 +106,12 @@ class StorageObject:
     @property
     def active_file_names(self):
         if not self._active_file_names:
-            if self._ocfl_object:
-                self._active_file_names = self._ocfl_object.filenames
-            else:
-                self._active_file_names = list(self.active_file_profiles.keys())
+            self._active_file_names = self._ocfl_object.filenames
         return self._active_file_names
 
     @property
     def all_file_names(self):
-        return list(self.files_info['files'].keys())
+        return list(self._ocfl_object.all_filenames)
 
     @property
     def storage_location(self):
