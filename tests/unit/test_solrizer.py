@@ -161,6 +161,24 @@ class TestSolrizer(unittest.TestCase):
             self.assertEqual(actual_solr_doc['add']['doc'][settings.IIIF_RESOURCE_FIELD], True)
             queue_job.assert_called_once_with(parent_pid, action=settings.IMAGE_PARENT_ACTION)
 
+    def test_solrize_object_with_deleted_files(self):
+        inventory = test_utils.get_base_inventory(self.pid)
+        v1_files = [('MODS', b'1234'), ('JP2', b'abcd')]
+        v2_files = [('JP2', b'abcd')]
+        test_utils.add_version_to_inventory(inventory, 'v1', test_utils.get_base_version(), v1_files)
+        test_utils.add_version_to_inventory(inventory, 'v2', test_utils.get_base_version(), v2_files)
+        object_root = ocfl.object_path(OCFL_ROOT, self.pid)
+        test_utils.write_inventory_files(object_root, inventory)
+        test_utils.write_content_files(object_root, 'v1', v1_files)
+        test_utils.write_content_files(object_root, 'v2', v2_files)
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
+                    solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc']['ds_ids_ssim'], ['JP2'])
+        self.assertEqual(sorted(actual_solr_doc['add']['doc']['all_ds_ids_ssim']), ['JP2', 'MODS'])
+
     def test_solrize_object_not_found(self):
         with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
             solrizer.solrize(self.pid)
