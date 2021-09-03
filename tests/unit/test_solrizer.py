@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -31,6 +32,8 @@ class TestSolrizer(unittest.TestCase):
             shutil.rmtree(os.path.join(settings.OCFL_ROOT, '1b5'))
         except FileNotFoundError:
             pass
+        if os.path.exists(settings.RESOURCE_TYPES_DB_NAME):
+            os.remove(settings.RESOURCE_TYPES_DB_NAME)
 
     def test_solrize_dwc(self):
         self.maxDiff = None
@@ -117,6 +120,24 @@ class TestSolrizer(unittest.TestCase):
                 solrizer.solrize(self.pid)
         actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
         self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'other')
+
+    def test_mods_resource_type_from_db(self):
+        mods_obj = mods.make_mods()
+        mods_obj.title = 'test object'
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('MODS', mods_obj.serialize()),
+                ])
+        db = sqlite3.connect(settings.RESOURCE_TYPES_DB_NAME)
+        db.execute('CREATE TABLE resource_types (pid TEXT NOT NULL, resource_type TEXT NOT NULL)')
+        db.commit()
+        db.execute('INSERT INTO resource_types (pid, resource_type) VALUES (?, ?)', (self.pid, 'maps'))
+        db.commit()
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'maps')
 
     def test_tei(self):
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,

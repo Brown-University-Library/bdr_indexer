@@ -21,6 +21,7 @@ if __name__ == '__main__':
     with tempfile.TemporaryDirectory() as tmp:
         os.environ['CACHE_DIR'] = tmp
         os.environ['OCFL_ROOT'] = tmp
+        os.environ['RESOURCE_TYPES_DB_NAME'] = os.path.join(tmp, 'resource_types.db')
         loader = unittest.TestLoader()
         tests = loader.discover(start_dir='.')
         test_runner = unittest.TextTestRunner()
