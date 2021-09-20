@@ -131,6 +131,16 @@ def _process_extracted_text(data, content_type):
         return data.decode('utf8')
 
 
+def _extract_tei(data):
+    parser = etree.XMLParser(recover=True)
+    xml_tree = etree.parse(io.BytesIO(data), parser)
+    text_to_index = []
+    for element in xml_tree.iter(tag=etree.Element):
+        if element.text and element.text.strip():
+            text_to_index.append(element.text.strip())
+    return ' '.join(text_to_index)
+
+
 class StorageObject:
 
     def __init__(self, pid, use_object_cache=False):
@@ -396,6 +406,8 @@ class SolrDocBuilder:
             extracted_text_data = self._get_extracted_text_for_indexing('EXTRACTED_TEXT')
         elif 'OCR' in self.storage_object.active_file_names:
             extracted_text_data = self._get_extracted_text_for_indexing('OCR')
+        elif 'TEI' in self.storage_object.active_file_names:
+            extracted_text_data = self._get_extracted_text_for_indexing('TEI')
         if extracted_text_data:
             doc['extracted_text'] = extracted_text_data
 
@@ -429,10 +441,13 @@ class SolrDocBuilder:
     def _get_extracted_text_for_indexing(self, ds_id):
         data, content_type = self.storage_object.get_file_contents_with_content_type(ds_id)
         try:
-            return _process_extracted_text(data, content_type)
+            if ds_id == 'TEI':
+                return _extract_tei(data)
+            else:
+                return _process_extracted_text(data, content_type)
         except Exception:
             import traceback
-            logger.error(f'{pid} {ds_id} error extracting text: {traceback.format_exc()}')
+            logger.error(f'{self.pid} {ds_id} error extracting text: {traceback.format_exc()}')
 
 
 class ZipIndexer:
