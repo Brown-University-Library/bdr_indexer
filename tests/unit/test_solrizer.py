@@ -279,7 +279,10 @@ class TestSolrizer(unittest.TestCase):
 class TestSolrDocBuilder(unittest.TestCase):
 
     def test_extract_text(self):
+        self.maxDiff = None
         self.assertEqual(solrdocbuilder._process_extracted_text('asdf'.encode('utf8'), None), 'asdf')
+        tei_text = '<text> <body> <div type="issue"> <!--xmp:xmpmeta found here.--><!--bookmark-tree found here.--> <div type="front"> <ab>October </ab> <ab>The Mowing </ab> </div> </div> </body> </text>'
+        self.assertEqual(solrdocbuilder._extract_tei(tei_text.encode('utf8')), 'October The Mowing')
 
 
 class TestUtils(unittest.TestCase):
