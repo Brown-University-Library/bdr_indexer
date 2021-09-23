@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import requests
 
-from .logger import logger
+from .logger import logger, error_logger
 from .settings import (
     SOLR74_URL,
     COMMIT_WITHIN,
@@ -130,6 +130,7 @@ def solrize(pid, action=ADD_ACTION, solr_instance='7.4'):
         solrizer74 = Solrizer(solr_url=SOLR74_URL, pid=pid)
         solrizer74.process(action)
     except Exception as e:
+        error_logger.error(f'{pid} {action} error: {e}')
         import traceback
         logger.error(f'{pid} {action} failed:  {traceback.format_exc()}')
         raise Exception(f'{datetime.now()} {pid} {action} error: {e}')

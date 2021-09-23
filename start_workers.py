@@ -8,16 +8,6 @@ import redis
 from rq import Connection, Worker
 
 
-def configure_logging():
-    logger = logging.getLogger('rq.worker')
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(process)d %(asctime)s - %(levelname)s - %(message)s')
-    file_handler = logging.FileHandler(join(os.environ['LOG_DIR'], 'indexer.log'))
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    return logger    
-
-
 def start_worker(queues=None):
     if not queues:
         queues = [settings.HIGH, settings.MEDIUM, settings.LOW]
@@ -42,8 +32,8 @@ if __name__ == '__main__':
     dotenv.read_dotenv(join(PROJECT_ROOT, '.env'))
 
     from bdr_solrizer import settings
-
-    configure_logging()
+    #import logger to setup logging before starting workers
+    from bdr_solrizer import logger
 
     for i in range(5):
         start_worker()

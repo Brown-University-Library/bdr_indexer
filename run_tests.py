@@ -22,6 +22,8 @@ if __name__ == '__main__':
         os.environ['CACHE_DIR'] = tmp
         os.environ['OCFL_ROOT'] = tmp
         os.environ['RESOURCE_TYPES_DB_NAME'] = os.path.join(tmp, 'resource_types.db')
+        os.environ['LOG_DIR'] = tmp
+        os.environ['ERROR_LOG_PATH'] = os.path.join(tmp, 'error.log')
         loader = unittest.TestLoader()
         tests = loader.discover(start_dir='.')
         test_runner = unittest.TextTestRunner()
