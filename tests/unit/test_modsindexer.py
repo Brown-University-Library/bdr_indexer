@@ -838,6 +838,27 @@ class TestModsIndexer(unittest.TestCase):
        ''')
         index_data = indexer.index_data()
         self.assertEqual(index_data['primary_title'], u'Poétry')
+    
+    def test_rfc3066_to_iso6392b_language_code_mapping(self):
+        indexer = self.indexer_for_mods_string(u'''
+          <mods:language>
+            <mods:languageTerm authority="rfc3066" type="code">en</mods:languageTerm>
+          </mods:language>
+          <mods:language>
+            <mods:languageTerm authority="rfc3066" type="code">de</mods:languageTerm>
+          </mods:language>
+          <mods:language>
+            <mods:languageTerm authority="rfc3066" type="code">zz</mods:languageTerm>
+          </mods:language>
+          <mods:language>
+            <mods:languageTerm type="code">dan</mods:languageTerm>
+          </mods:language>
+          <mods:language>
+            <mods:languageTerm authority="iso639-2b">aa</mods:languageTerm>
+          </mods:language>
+       ''')
+        index_data = indexer.index_data()
+        self.assertEqual(index_data['mods_language_code_ssim'], ['eng','ger', 'zz', 'dan'])
 
 
 def suite():
