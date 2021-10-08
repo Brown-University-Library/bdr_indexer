@@ -19,7 +19,6 @@ INDEXED_RELS_EXT = [
     'isAnnotationOf',
     'isDerivationOf',
     'HasDescription',
-    'isTranscriptOf',
 ]
 
 RDF_TYPE_MAPPING = {
@@ -111,6 +110,11 @@ class RelsExtIndexer:
         if not pagination_objs:
             pagination_objs = self.objects_for_predicate(predicate=self.OLD_BUL_NS.hasPagination)
         return pagination_objs
+        
+    @property
+    def transcript_objs(self):
+        transcript_objs = self.objects_for_predicate(predicate=self.BUL_NS.isTranscriptOf)
+        return transcript_objs
 
     def index_rdf(self, rdfns, indexed_terms, prefix=''):
         rdf_dict={}
@@ -171,6 +175,7 @@ class RelsExtIndexer:
             'rel_object_type_ssi': self.object_type,
             'rel_stream_uri_ssi': self.stream_uri,
             'rel_has_pagination_ssim': self.pagination_objs,
+            'rel_is_transcript_of_ssim': self.transcript_objs,
             # Legacy solr fields
             'object_type': self.object_type,
             'stream_uri_s': self.stream_uri,
