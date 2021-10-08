@@ -19,6 +19,7 @@ INDEXED_RELS_EXT = [
     'isAnnotationOf',
     'isDerivationOf',
     'HasDescription',
+    'isTranscriptOf',
 ]
 
 RDF_TYPE_MAPPING = {
