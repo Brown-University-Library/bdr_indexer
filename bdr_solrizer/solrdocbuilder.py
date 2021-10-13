@@ -7,7 +7,7 @@ import redis
 from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
-from rdflib import Graph
+from rdflib import Graph, Namespace, URIRef
 from bdrxml.rdfns import relsext as relsext_ns, model as model_ns
 from .indexers.irindexer import IRIndexer
 from .indexers import (
@@ -33,6 +33,7 @@ from .settings import (
     )
 from .logger import logger
 
+BUL_NS = Namespace(URIRef("http://library.brown.edu/#"))
 CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
 REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 XML_NAMESPACES = {
@@ -254,8 +255,22 @@ class StorageObject:
                 pass
 
     @property
+    def original_for_transcript_pid(self):
+        objects = list(self.rels_ext.objects(predicate=BUL_NS.isTranscriptOf))
+        if objects:
+            return str(objects[0]).split('/')[-1]
+
+    @property
+    def original_for_transcript_object(self):
+        if self.original_for_transcript_pid:
+            try:
+                return StorageObject(self.original_for_transcript_pid, use_object_cache=True)
+            except (ObjectNotFound, ObjectDeleted):
+                pass
+
+    @property
     def ancestors(self):
-        return [self.original_object, self.parent_object]
+        return [self.original_object, self.original_for_transcript_object, self.parent_object]
 
     def is_image_child(self):
         if self.parent_pid:

@@ -195,6 +195,31 @@ class TestSolrizer(unittest.TestCase):
             self.assertEqual(actual_solr_doc['add']['doc'][settings.IIIF_RESOURCE_FIELD], True)
             queue_job.assert_called_once_with(parent_pid, action=settings.IMAGE_PARENT_ACTION)
 
+    def test_solrize_transcript_object_with_original_object_metadata(self):
+        orig_pid = 'testsuite:2'
+        orig_mods = mods.make_mods()
+        orig_mods.title = 'original object title'
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=orig_pid,
+                files=[
+                    ('MODS', orig_mods.serialize()),
+                ])
+        rels_ext = Graph()
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), model_ns.hasModel, URIRef('info:fedora/bdr-cmodel:image')) )
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), solrdocbuilder.BUL_NS.isTranscriptOf, URIRef(f'info:fedora/{orig_pid}')) )
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('RELS-EXT', rels_ext.serialize(format='xml')),
+                    ('PDF', b''),
+                    ('irMetadata', irMetadata.make_ir().serialize()),
+                    ('rightsMetadata', rights.make_rights().serialize()),
+                    ('RELS-INT', Graph().serialize(format='xml')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+                actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+            self.assertEqual(actual_solr_doc['add']['doc']['primary_title'], 'original object title')
+
     def test_solrize_object_with_deleted_files(self):
         inventory = test_utils.get_base_inventory(self.pid)
         v1_files = [('MODS', b'1234'), ('JP2', b'abcd')]
