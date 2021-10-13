@@ -192,19 +192,6 @@ class TestModsIndexer(unittest.TestCase):
             "2000", "2009" ]
         )
 
-
-
-    def test_date_invalid(self):
-        '''Test Invalid Date'''
-        sample_mods = u'''
-          <mods:originInfo>
-            <mods:dateModified encoding="w3cdtf" point="start">invalid date</mods:dateModified>
-          </mods:originInfo>
-        '''
-        indexer = self.indexer_for_mods_string(sample_mods)
-        indexer.index_dates()
-        self.assertTrue(indexer.has_invalid_date())
-
     def test_genre_index(self):
         sample_mods = '''
           <mods:genre authority="aat"></mods:genre>

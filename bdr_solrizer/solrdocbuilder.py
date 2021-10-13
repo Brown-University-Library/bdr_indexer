@@ -3,7 +3,6 @@ import io
 import json
 import sqlite3
 import zipfile
-import redis
 from lxml import etree
 from diskcache import Cache
 from bdrocfl import ocfl
@@ -35,7 +34,6 @@ from .logger import logger
 
 BUL_NS = Namespace(URIRef("http://library.brown.edu/#"))
 CACHE_EXPIRE_SECONDS = 60*60*24*30 #one month
-REDIS_INVALID_DATE_KEY = 'bdrsolrizer:invaliddates'
 XML_NAMESPACES = {
     'mets': 'http://www.loc.gov/METS/'
 }
@@ -318,13 +316,6 @@ class SolrDocBuilder:
         self.storage_object = storage_object
         self.pid = self.storage_object.pid
 
-    def report_invalid_date(self, pid):
-        try:
-            r_conn = redis.StrictRedis()
-            r_conn.sadd(REDIS_INVALID_DATE_KEY, pid)
-        except Exception as e:
-            logger.error('error adding invalid date pid %s to redis: %s' % (pid, e))
-
     def has_primary_title(self, descriptive_index):
         return 'primary_title' in descriptive_index
 
@@ -333,8 +324,6 @@ class SolrDocBuilder:
 
     def _get_mods_index_data(self, mods_bytes):
         mods_indexer = ModsIndexer(mods_bytes)
-        if mods_indexer.has_invalid_date():
-            self.report_invalid_date(self.pid)
         return mods_indexer.index_data()
 
     def _add_dwc_index_data(self, dwc_bytes, descriptive_index):
