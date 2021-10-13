@@ -103,13 +103,6 @@ class ModsIndexer(CommonIndexer):
             return ' '.join([t.strip() for t in text.splitlines()])
         return ''
 
-    def has_invalid_date(self):
-        for d in ModsIndexer.DATE_NAMES:
-            for date in self._get_dates(d):
-                if not self._get_solr_date(date.text.strip()):
-                    return True
-        return False
-
     ABSTRACT_MAPPING = [
             ('mods:abstract', 'abstract', 'm'),
             ('mods:abstract', 'mods_abstract_ssim', 'm'),
