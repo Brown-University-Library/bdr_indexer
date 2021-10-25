@@ -16,6 +16,7 @@ INDEXED_DCTERMS = [
 INDEXED_RELS_EXT = [
     'isPartOf',
     'isMemberOf',
+    'isMemberOfCollection',
     'isAnnotationOf',
     'isDerivationOf',
     'HasDescription',

@@ -12,10 +12,11 @@ class TestRelsExt(unittest.TestCase):
 
     def test_rels(self):
         rels_ext_indexer = RelsExtIndexer(rels_bytes=RELS_EXT_XML.encode('utf8'))
-        self.assertEqual(len(rels_ext_indexer.rels), 10)
+        self.assertEqual(len(rels_ext_indexer.rels), 11)
         indexed_data = rels_ext_indexer.index_data()
         self.assertEqual(indexed_data['object_type'], 'pdf')
         self.assertEqual(indexed_data['rel_is_part_of_ssim'], ['test:5555'])
+        self.assertEqual(indexed_data['rel_is_member_of_collection_ssim'], ['test:abcd1234'])
         self.assertEqual(indexed_data['rel_type_facet_ssim'], ['Doctoral Dissertation'])
         self.assertEqual(indexed_data['rel_display_label_ssi'], 'user lâbel')
         self.assertEqual(indexed_data['rel_panopto_id_ssi'], '12345-abcde')
@@ -25,7 +26,7 @@ class TestRelsExt(unittest.TestCase):
         #make sure un-mapped type doesn't get indexed
         g = rels_ext_indexer.rels
         g.set( (URIRef('info:fedora/test:1234'), RDF.type, URIRef('http://purl.org/spar/fabio/BibliographicDatabase')) )
-        self.assertEqual(len(g), 10)
+        self.assertEqual(len(g), 11)
         indexed_data = RelsExtIndexer(rels=g).index_data()
         self.assertTrue('rel_type_facet_ssim' not in indexed_data)
 
