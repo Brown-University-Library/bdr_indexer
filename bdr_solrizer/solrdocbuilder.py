@@ -17,6 +17,7 @@ from .indexers import (
     SimpleDarwinRecordIndexer,
     FitsIndexer,
     TEIIndexer,
+    CollectionIndexer,
     parse_rdf_xml_into_graph,
 )
 from . import utils
@@ -403,6 +404,12 @@ class SolrDocBuilder:
             fits_contents = self.storage_object.get_file_contents('FITS')
             self._add_all_fields(doc,
                 FitsIndexer(fits_contents).index_data()
+            )
+
+        if 'collection_info' in self.storage_object.active_file_names:
+            contents = self.storage_object.get_file_contents('collection_info')
+            self._add_all_fields(doc,
+                CollectionIndexer(contents).index_data()
             )
 
         extracted_text_data = None

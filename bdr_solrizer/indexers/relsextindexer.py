@@ -9,6 +9,13 @@ from bdrxml.rdfns import (
 )
 from .. import settings
 
+
+BUL_NS = Namespace('http://library.brown.edu/#')
+PSO_NS = Namespace('http://purl.org/spar/pso/#')
+FABIO_NS = Namespace('http://purl.org/spar/fabio/#')
+OLD_BUL_NS = Namespace('http://library.brown.edu')
+
+
 INDEXED_DCTERMS = [
     'isVersionOf',
 ]
@@ -43,16 +50,12 @@ def parse_rdf_xml_into_graph(contents):
 class RelsExtIndexer:
     """Indexer for Rels-ext RDF datastream"""
 
-    BUL_NS = Namespace('http://library.brown.edu/#')
-    PSO_NS = Namespace('http://purl.org/spar/pso/#')
-    FABIO_NS = Namespace('http://purl.org/spar/fabio/#')
-    OLD_BUL_NS = Namespace('http://library.brown.edu')
-
     @staticmethod
     def get_object_type_from_content_models(content_models):
         reduced_content_models = [m for m in content_models if m not in METADATA_OBJECT_TYPES]
-        if 'bdr-collection' in reduced_content_models:
-            return 'bdr-collection'
+        collection_cmodel = 'bdr-collection'
+        if collection_cmodel in reduced_content_models:
+            return collection_cmodel
         for image_content_model in ['image', 'jp2', 'image-compound', 'jpg', 'png', 'masterImage']:
             if image_content_model in reduced_content_models:
                 return 'image'
@@ -95,7 +98,7 @@ class RelsExtIndexer:
     @property
     def stream_uri(self):
         if self._stream_uri is None:
-            streams = self.rels.objects(predicate=self.BUL_NS.hasStream)
+            streams = self.rels.objects(predicate=BUL_NS.hasStream)
             self._stream_uri = next(streams, '')
         return self._stream_uri
 
@@ -107,14 +110,14 @@ class RelsExtIndexer:
 
     @property
     def pagination_objs(self):
-        pagination_objs = self.objects_for_predicate(predicate=self.BUL_NS.hasPagination)
+        pagination_objs = self.objects_for_predicate(predicate=BUL_NS.hasPagination)
         if not pagination_objs:
-            pagination_objs = self.objects_for_predicate(predicate=self.OLD_BUL_NS.hasPagination)
+            pagination_objs = self.objects_for_predicate(predicate=OLD_BUL_NS.hasPagination)
         return pagination_objs
         
     @property
     def transcript_objs(self):
-        transcript_objs = self.objects_for_predicate(predicate=self.BUL_NS.isTranscriptOf)
+        transcript_objs = self.objects_for_predicate(predicate=BUL_NS.isTranscriptOf)
         return transcript_objs
 
     def index_rdf(self, rdfns, indexed_terms, prefix=''):
@@ -147,8 +150,8 @@ class RelsExtIndexer:
 
     def _index_bul_ns(self):
         mapping = {
-                'rel_display_label_ssi': self.BUL_NS.displayLabel,
-                'rel_panopto_id_ssi': self.BUL_NS.panoptoId,
+                'rel_display_label_ssi': BUL_NS.displayLabel,
+                'rel_panopto_id_ssi': BUL_NS.panoptoId,
             }
         info = {}
 
@@ -161,11 +164,11 @@ class RelsExtIndexer:
 
     def _index_embargo_info(self):
         info = {}
-        statuses = list(self.rels.objects(predicate=self.PSO_NS.withStatus))
+        statuses = list(self.rels.objects(predicate=PSO_NS.withStatus))
         if statuses:
             status = statuses[0].split('#')[-1]
             info['rel_pso_status_ssi'] = str(status)
-        dates = list(self.rels.objects(predicate=self.FABIO_NS.hasEmbargoDate))
+        dates = list(self.rels.objects(predicate=FABIO_NS.hasEmbargoDate))
         if dates:
             info['rel_embargo_years_ssim'] = sorted([str(date)[:4] for date in dates])
         return info

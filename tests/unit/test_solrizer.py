@@ -14,8 +14,9 @@ from rdflib import Graph, URIRef
 from diskcache import Cache
 from bdrxml import irMetadata, rights, mods, darwincore
 from bdrxml.rdfns import model as model_ns, relsext as relsext_ns
-from bdr_solrizer import solrizer, solrdocbuilder, settings, utils
 from bdrocfl import ocfl, test_utils
+from bdr_solrizer import solrizer, solrdocbuilder, settings, utils
+from bdr_solrizer.indexers.relsextindexer import MODELS_NS
 from . import test_data
 
 
@@ -34,6 +35,40 @@ class TestSolrizer(unittest.TestCase):
             pass
         if os.path.exists(settings.RESOURCE_TYPES_DB_NAME):
             os.remove(settings.RESOURCE_TYPES_DB_NAME)
+
+    def test_collection_obj(self):
+        rels_ext = Graph()
+        rels_ext.set( (URIRef(f'info:fedora/{self.pid}'), MODELS_NS.hasModel, URIRef('info:fedora/bdr-cmodel:bdr-collection')) )
+        facet1 = {'name': 'Year', 'field': 'mods_dateAll_year_ssim', 'sort_by_count': False}
+        facet2 = {'name': 'Keyword', 'field': 'keyword', 'sort_by_count': True}
+        collection_info = {
+                'db_id': 1,
+                'slug': 'collection-one',
+                'name': 'Collection One',
+                'description': 'Some collection',
+                'facets': [
+                    facet1,
+                    facet2,
+                ],
+                'tags': ['dissertations', 'research'],
+                'db_date_created': '2012-01-25',
+            }
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('rightsMetadata', rights.make_rights().serialize()),
+                    ('collection_info', json.dumps(collection_info).encode('utf8')),
+                    ('RELS-EXT', rels_ext.serialize(format='xml')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(solr_doc['add']['doc']['object_type'], 'bdr-collection')
+        self.assertEqual(solr_doc['add']['doc']['collection_db_date_created_ssim'], ['2012-01-25'])
+        self.assertEqual(sorted(solr_doc['add']['doc']['collection_facets_ssim']),
+                [json.dumps(facet2), json.dumps(facet1)]
+            )
+        self.assertEqual(sorted(solr_doc['add']['doc']['collection_tags_ssim']), ['dissertations', 'research'])
 
     def test_solrize_dwc(self):
         self.maxDiff = None
