@@ -16,7 +16,7 @@ class TestRelsExt(unittest.TestCase):
         indexed_data = rels_ext_indexer.index_data()
         self.assertEqual(indexed_data['object_type'], 'pdf')
         self.assertEqual(indexed_data['rel_is_part_of_ssim'], ['test:5555'])
-        self.assertEqual(indexed_data['rel_is_member_of_collection_ssim'], ['test:abcd1234', 'test:xyz5678'])
+        self.assertEqual(sorted(indexed_data['rel_is_member_of_collection_ssim']), ['test:abcd1234', 'test:xyz5678'])
         self.assertEqual(indexed_data['rel_type_facet_ssim'], ['Doctoral Dissertation'])
         self.assertEqual(indexed_data['rel_display_label_ssi'], 'user lâbel')
         self.assertEqual(indexed_data['rel_panopto_id_ssi'], '12345-abcde')
