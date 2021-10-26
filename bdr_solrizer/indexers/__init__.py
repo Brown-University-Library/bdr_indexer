@@ -6,3 +6,4 @@ from .modsindexer import ModsIndexer
 from .relsextindexer import RelsExtIndexer, parse_rdf_xml_into_graph
 from .rightsindexer import RightsIndexer
 from .teiindexer import TEIIndexer
+from .collection_indexer import CollectionIndexer
