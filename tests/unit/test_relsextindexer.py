@@ -50,6 +50,7 @@ class TestRelsExt(unittest.TestCase):
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'masterImage', 'jp2']), 'image')
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'jpg']), 'image')
         self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['commonMetadata', 'png']), 'image')
+        self.assertEqual(RelsExtIndexer.get_object_type_from_content_models(['bdr-collection']), 'bdr-collection')
 
     def test_old_pagination(self):
         rels_ext_xml = '''<?xml version="1.0" encoding="UTF-8"?>
