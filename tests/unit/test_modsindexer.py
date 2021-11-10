@@ -611,7 +611,11 @@ class TestModsIndexer(unittest.TestCase):
 
     def test_related_index(self):
         sample_mods = '''
-          <mods:relatedItem type="host">
+          <mods:relatedItem type="host" displayLabel="Collection:">
+            <mods:titleInfo>
+              <mods:title>some title</mods:title>
+              <mods:partNumber>part 1</mods:partNumber>
+            </mods:titleInfo>
             <mods:identifier type="type"></mods:identifier>
             <mods:identifier>test_id</mods:identifier>
             <mods:dateCreated encoding="w3cdtf" keyDate="yes">1908-04-03</mods:dateCreated>
@@ -631,6 +635,7 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_related_id_ssim'], ['test_id'])
         self.assertEqual(index_data['mods_related_id_type_ssim'], ['1234567890123456'])
         self.assertEqual(index_data['mods_related_name_ssim'], ['Shakespeare, William'])
+        self.assertEqual(index_data['mods_related_title_partnumber_ssim'], ['part 1'])
 
     def test_role_index(self):
         indexer = self.indexer_for_mods_string(self.SAMPLE_MODS_NAMES)

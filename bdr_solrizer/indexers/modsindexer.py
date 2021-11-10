@@ -822,6 +822,17 @@ class ModsIndexer(CommonIndexer):
             # go into other_title
             else:
                 self.append_field('other_title', titles)
+            #titleInfo/partNumber
+            title_partnumber_els = related_item.xpath(
+                    'mods:titleInfo/mods:partNumber',
+                    namespaces=self.mods.ROOT_NAMESPACES
+            )
+            for pn in title_partnumber_els:
+                if pn.text:
+                    self.append_field(
+                            'mods_related_title_partnumber_ssim',
+                            [pn.text]
+                        )
             # solrize ids here as well
             identifier_els = related_item.xpath(
                     'mods:identifier',
