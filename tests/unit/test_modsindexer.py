@@ -229,10 +229,11 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_id'], 'id101')
 
     def test_language_index(self):
-        sample_mods = u'''
+        sample_mods = '''
           <mods:language>
            <mods:languageTerm type="text">English</mods:languageTerm>
            <mods:languageTerm type="code" authority="iso639-2b">eng</mods:languageTerm>
+           <mods:scriptTerm type="text">script</mods:scriptTerm>
           </mods:language>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
@@ -242,6 +243,9 @@ class TestModsIndexer(unittest.TestCase):
         )
         self.assertEqual(
                 index_data['mods_language_code_ssim'], [u'eng']
+        )
+        self.assertEqual(
+                index_data['mods_language_script_text_ssim'], ['script']
         )
 
     def test_location_index(self):

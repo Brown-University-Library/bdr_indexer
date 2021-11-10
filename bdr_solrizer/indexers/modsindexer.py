@@ -244,6 +244,17 @@ class ModsIndexer(CommonIndexer):
                         ),
                         mods_language_code_ssim_text
                 )
+        script_term_els = self.mods.node.xpath(
+                'mods:language/mods:scriptTerm',
+                namespaces=self.mods.ROOT_NAMESPACES
+            )
+        for script_term in script_term_els:
+            type_ = script_term.get('type')
+            if type_ == 'text' and script_term.text:
+                self.append_field(
+                        'mods_language_script_text_ssim',
+                        [script_term.text]
+                    )
         return self
 
     def index_locations(self):
