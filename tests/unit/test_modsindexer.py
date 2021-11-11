@@ -229,10 +229,11 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_id'], 'id101')
 
     def test_language_index(self):
-        sample_mods = u'''
+        sample_mods = '''
           <mods:language>
            <mods:languageTerm type="text">English</mods:languageTerm>
            <mods:languageTerm type="code" authority="iso639-2b">eng</mods:languageTerm>
+           <mods:scriptTerm type="text">script</mods:scriptTerm>
           </mods:language>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
@@ -242,6 +243,9 @@ class TestModsIndexer(unittest.TestCase):
         )
         self.assertEqual(
                 index_data['mods_language_code_ssim'], [u'eng']
+        )
+        self.assertEqual(
+                index_data['mods_language_script_text_ssim'], ['script']
         )
 
     def test_location_index(self):
@@ -611,7 +615,11 @@ class TestModsIndexer(unittest.TestCase):
 
     def test_related_index(self):
         sample_mods = '''
-          <mods:relatedItem type="host">
+          <mods:relatedItem type="host" displayLabel="Collection:">
+            <mods:titleInfo>
+              <mods:title>some title</mods:title>
+              <mods:partNumber>part 1</mods:partNumber>
+            </mods:titleInfo>
             <mods:identifier type="type"></mods:identifier>
             <mods:identifier>test_id</mods:identifier>
             <mods:dateCreated encoding="w3cdtf" keyDate="yes">1908-04-03</mods:dateCreated>
@@ -631,6 +639,7 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_related_id_ssim'], ['test_id'])
         self.assertEqual(index_data['mods_related_id_type_ssim'], ['1234567890123456'])
         self.assertEqual(index_data['mods_related_name_ssim'], ['Shakespeare, William'])
+        self.assertEqual(index_data['mods_related_title_partnumber_ssim'], ['part 1'])
 
     def test_role_index(self):
         indexer = self.indexer_for_mods_string(self.SAMPLE_MODS_NAMES)
