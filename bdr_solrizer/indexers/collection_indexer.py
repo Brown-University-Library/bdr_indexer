@@ -22,4 +22,6 @@ class CollectionIndexer:
             data['collection_facets_ssim'] = [json.dumps(f) for f in self.collection_info['facets']]
         if 'tags' in self.collection_info:
             data['collection_tags_ssim'] = self.collection_info['tags']
+        if 'type' in self.collection_info:
+            data['collection_type_ssim'] = [self.collection_info['type']]
         return data
