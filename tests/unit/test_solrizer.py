@@ -203,17 +203,20 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'text_resources')
 
     def test_collection_info(self):
+        rels_ext = Graph()
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), relsext_ns.isMemberOfCollection, URIRef('info:fedora/testsuite:parentcollection1')) )
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), relsext_ns.isMemberOfCollection, URIRef('info:fedora/testsuite:parentcollection2')) )
         ir_obj = irMetadata.make_ir()
         ir_obj.collection_list.append(123)
         ir_obj.collection_list.append(456)
         test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
                 files=[
                     ('rightsMetadata', rights.make_rights().serialize()),
-                    ('RELS-EXT', test_data.SIMPLE_RELS_EXT_XML.encode('utf8')),
+                    ('RELS-EXT', rels_ext.serialize(format='xml')),
                     ('MODS', mods.make_mods().serialize()),
                     ('irMetadata', ir_obj.serialize()),
                 ])
-        with patch('bdr_solrizer.indexers.irindexer.get_ancestors') as ancestors_mock:
+        with patch('bdr_solrizer.indexers.relsextindexer.get_ancestors') as ancestors_mock:
             ancestors_mock.side_effect = [
                     ['collection1', 'collection2'],
                     ['collection3', 'collection2'],
@@ -225,6 +228,7 @@ class TestSolrizer(unittest.TestCase):
         actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
         self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_id'], ['123', '456'])
         self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_name'], ['collection1', 'collection2', 'collection3'])
+        self.assertEqual(sorted(actual_solr_doc['add']['doc']['rel_is_member_of_collection_ssim']), ['testsuite:parentcollection1', 'testsuite:parentcollection2'])
 
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'

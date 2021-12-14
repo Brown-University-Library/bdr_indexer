@@ -1,5 +1,6 @@
 from io import BytesIO
 import inflection
+import requests
 
 from rdflib import Namespace, Graph
 from rdflib.namespace import DCTERMS, RDF
@@ -8,6 +9,11 @@ from bdrxml.rdfns import (
     model as MODELS_NS,
 )
 from .. import settings
+from ..settings import (
+    COLLECTION_URL_PARAM,
+    COLLECTION_URL,
+    CACHE_DIR,
+)
 
 
 BUL_NS = Namespace('http://library.brown.edu/#')
@@ -41,6 +47,58 @@ METADATA_OBJECT_TYPES = [
 ]
 
 
+EXPIRE_SECONDS = 60 * 60 * 24
+
+
+def get_ancestors_from_cache(key):
+    with Cache(CACHE_DIR) as cache:
+        if key in cache:
+            return cache[key]
+
+
+def get_ancestors_from_api(collection_id):
+    url = f'{COLLECTION_URL}{collection_id}/?{COLLECTION_URL_PARAM}'
+    r = requests.get(url)
+    if r.ok:
+        data = r.json()
+        ancestors = data['ancestors']
+        ancestors.append(data['name'])
+        return ancestors
+    else:
+        raise Exception('Error from %s: %s - %s' % (url, r.status_code, r.content))
+
+
+def add_ancestors_to_cache(key, ancestors):
+    with Cache(CACHE_DIR) as cache:
+        cache.set(key, ancestors, expire=EXPIRE_SECONDS)
+
+
+def get_ancestors(collection_id):
+    key = f'{collection_id}_ancestors'
+    #don't fail on any cache errors
+    try:
+        ancestors = get_ancestors_from_cache(key)
+    except Exception:
+        ancestors = None
+    if not ancestors:
+        ancestors = get_ancestors_from_api(collection_id)
+        try:
+            add_ancestors_to_cache(key, ancestors)
+        except Exception:
+            pass
+    return ancestors
+
+
+def get_collection_names(collection_pids):
+    collection_names = []
+    for collection_pid in collection_pids:
+        ancestors = get_ancestors(collection_pid)
+        for ancestor in ancestors:
+            if ancestor not in collection_names:
+                collection_names.append(ancestor)
+    return collection_names
+
+
 def parse_rdf_xml_into_graph(contents):
     g = Graph()
     g.parse(BytesIO(contents), format='application/rdf+xml')
@@ -71,6 +129,11 @@ class RelsExtIndexer:
     def get_content_models_from_rels(rels):
         models = [o for o in rels.objects(predicate=MODELS_NS.hasModel)]
         return [str(model).split(':')[-1] for model in models]
+
+    @staticmethod
+    def get_collection_pids(rels_ext):
+        is_member_of_collection = list(rels_ext.objects(predicate=RELS_EXT_NS.isMemberOfCollection))
+        return [str(c).split('/')[-1] for c in is_member_of_collection]
 
     def _create_solr_field(self, term, prefix=""):
             return "rel_%s%s_ssim" % ( prefix, inflection.underscore(term))
@@ -174,7 +237,7 @@ class RelsExtIndexer:
         return info
 
     def index_data(self):
-        in_data= {
+        in_data = {
             'rel_content_models_ssim': self.content_models,
             'rel_object_type_ssi': self.object_type,
             'rel_stream_uri_ssi': self.stream_uri,
@@ -191,5 +254,6 @@ class RelsExtIndexer:
         in_data.update(self._index_rdf_type())
         in_data.update(self._index_bul_ns())
         in_data.update(self._index_embargo_info())
+        collection_pids = RelsExtIndexer.get_collection_pids(self.rels)
+        in_data['ir_collection_name'] = get_collection_names(collection_pids)
         return in_data
-
