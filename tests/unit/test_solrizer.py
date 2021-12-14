@@ -213,7 +213,7 @@ class TestSolrizer(unittest.TestCase):
                     ('MODS', mods.make_mods().serialize()),
                     ('irMetadata', ir_obj.serialize()),
                 ])
-        with patch('bdr_solrizer.indexers.irindexer.IRIndexer._get_ancestors') as ancestors_mock:
+        with patch('bdr_solrizer.indexers.irindexer.get_ancestors') as ancestors_mock:
             ancestors_mock.side_effect = [
                     ['collection1', 'collection2'],
                     ['collection3', 'collection2'],
@@ -224,7 +224,7 @@ class TestSolrizer(unittest.TestCase):
                         solrizer.solrize(self.pid)
         actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
         self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_id'], ['123', '456'])
-        self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_name'], ['collection1', 'collection2', 'collection3', 'collection2'])
+        self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_name'], ['collection1', 'collection2', 'collection3'])
 
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'

@@ -22,7 +22,6 @@ from .indexers import (
 )
 from . import utils
 from .settings import (
-        COLLECTION_URL,
         CACHE_DIR,
         STORAGE_SERVICE_ROOT,
         STORAGE_SERVICE_PARAM,
@@ -391,7 +390,7 @@ class SolrDocBuilder:
             )
 
         if 'irMetadata' in self.storage_object.active_file_names:
-            ir_data = IRIndexer(self.storage_object.get_file_contents('irMetadata'), COLLECTION_URL, CACHE_DIR).index_data()
+            ir_data = IRIndexer(self.storage_object.get_file_contents('irMetadata')).index_data()
             self._add_all_fields(doc, ir_data)
 
         if 'rightsMetadata' in self.storage_object.active_file_names:

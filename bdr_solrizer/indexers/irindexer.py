@@ -4,18 +4,59 @@ import requests
 from diskcache import Cache
 from eulxml.xmlmap import load_xmlobject_from_string
 from bdrxml import irMetadata
-from ..settings import COLLECTION_URL_PARAM
+from ..settings import (
+    COLLECTION_URL_PARAM,
+    COLLECTION_URL,
+    CACHE_DIR,
+)
 
 
 EXPIRE_SECONDS = 60 * 60 * 24
 
 
+def get_ancestors_from_cache(key):
+    with Cache(CACHE_DIR) as cache:
+        if key in cache:
+            return cache[key]
+
+
+def get_ancestors_from_api(collection_id):
+    url = f'{COLLECTION_URL}{collection_id}/?{COLLECTION_URL_PARAM}'
+    r = requests.get(url)
+    if r.ok:
+        data = r.json()
+        ancestors = data['ancestors']
+        ancestors.append(data['name'])
+        return ancestors
+    else:
+        raise Exception('Error from %s: %s - %s' % (url, r.status_code, r.content))
+
+
+def add_ancestors_to_cache(key, ancestors):
+    with Cache(CACHE_DIR) as cache:
+        cache.set(key, ancestors, expire=EXPIRE_SECONDS)
+
+
+def get_ancestors(collection_id):
+    key = f'{collection_id}_ancestors'
+    #don't fail on any cache errors
+    try:
+        ancestors = get_ancestors_from_cache(key)
+    except Exception:
+        ancestors = None
+    if not ancestors:
+        ancestors = get_ancestors_from_api(collection_id)
+        try:
+            add_ancestors_to_cache(key, ancestors)
+        except Exception:
+            pass
+    return ancestors
+
+
 class IRIndexer:
 
-    def __init__(self, ir_bytes, collection_url, cache_dir):
+    def __init__(self, ir_bytes):
         self.ir = load_xmlobject_from_string(ir_bytes, irMetadata.IR)
-        self.collection_url = collection_url
-        self.cache_dir = cache_dir
 
     def get_deposit_date(self):
         ir_date = self.ir.date
@@ -40,7 +81,10 @@ class IRIndexer:
     def get_collection_names(self):
         collection_names = []
         for collection_id in self.ir.collection_list:
-            collection_names.extend( self._get_ancestors(collection_id))
+            ancestors = get_ancestors(collection_id)
+            for ancestor in ancestors:
+                if ancestor not in collection_names:
+                    collection_names.append(ancestor)
         return collection_names
 
     def index_data(self):
@@ -53,39 +97,3 @@ class IRIndexer:
             'ir_collection_id': [str(c) for c in self.ir.collection_list],
             'ir_collection_name': self.get_collection_names(),
         }
-
-    def _get_ancestors_from_cache(self, key):
-        with Cache(self.cache_dir) as cache:
-            if key in cache:
-                return cache[key]
-
-    def _get_ancestors_from_api(self, collection_id):
-        url = f'{self.collection_url}{collection_id}/?{COLLECTION_URL_PARAM}'
-        r = requests.get(url)
-        if r.ok:
-            data = r.json()
-            ancestors = data['ancestors']
-            ancestors.append(data['name'])
-            return ancestors
-        else:
-            raise Exception('Error from %s: %s - %s' % (url, r.status_code, r.content))
-
-    def _add_ancestors_to_cache(self, key, ancestors):
-        with Cache(self.cache_dir) as cache:
-            cache.set(key, ancestors, expire=EXPIRE_SECONDS)
-
-    def _get_ancestors(self, collection_id):
-        key = f'{collection_id}_ancestors'
-        #don't fail on any cache errors
-        try:
-            ancestors = self._get_ancestors_from_cache(key)
-        except Exception:
-            ancestors = None
-        if not ancestors:
-            ancestors = self._get_ancestors_from_api(collection_id)
-            try:
-                self._add_ancestors_to_cache(key, ancestors)
-            except Exception:
-                pass
-        return ancestors
-
