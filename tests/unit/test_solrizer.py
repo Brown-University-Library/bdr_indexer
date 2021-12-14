@@ -202,6 +202,30 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc']['tei_language_display_ssi'], ['Greek'])
         self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'text_resources')
 
+    def test_collection_info(self):
+        ir_obj = irMetadata.make_ir()
+        ir_obj.collection_list.append(123)
+        ir_obj.collection_list.append(456)
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('rightsMetadata', rights.make_rights().serialize()),
+                    ('RELS-EXT', test_data.SIMPLE_RELS_EXT_XML.encode('utf8')),
+                    ('MODS', mods.make_mods().serialize()),
+                    ('irMetadata', ir_obj.serialize()),
+                ])
+        with patch('bdr_solrizer.indexers.irindexer.IRIndexer._get_ancestors') as ancestors_mock:
+            ancestors_mock.side_effect = [
+                    ['collection1', 'collection2'],
+                    ['collection3', 'collection2'],
+                ]
+            with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+                with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                    with patch('bdr_solrizer.solrizer.queue_solrize_job') as queue_job:
+                        solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_id'], ['123', '456'])
+        self.assertEqual(actual_solr_doc['add']['doc']['ir_collection_name'], ['collection1', 'collection2', 'collection3', 'collection2'])
+
     def test_solrize_child_object_with_parent_metadata(self):
         parent_pid = 'testsuite:2'
         parent_mods = mods.make_mods()
