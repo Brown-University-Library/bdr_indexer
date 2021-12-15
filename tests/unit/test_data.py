@@ -299,8 +299,6 @@ RELS_EXT_XML = '''<?xml version="1.0" encoding="UTF-8"?>
     <fedora-model:hasModel rdf:resource="info:fedora/bdr-cmodel:commonMetadata"/>
     <fedora-model:hasModel rdf:resource="info:fedora/bdr-cmodel:pdf"/>
     <fedora-rels-ext:isPartOf rdf:resource="info:fedora/test:5555"/>
-    <fedora-rels-ext:isMemberOfCollection rdf:resource="info:fedora/test:abcd1234"/>
-    <fedora-rels-ext:isMemberOfCollection rdf:resource="info:fedora/test:xyz5678"/>
     <rdf:type rdf:resource="http://purl.org/spar/fabio/DoctoralThesis"/>
     <pso:withStatus rdf:resource="http://purl.org/spar/pso/#embargoed"/>
     <fabio:hasEmbargoDate>2018-06-01T00:00:01Z</fabio:hasEmbargoDate>
