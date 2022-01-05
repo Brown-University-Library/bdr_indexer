@@ -222,6 +222,9 @@ class RelsExtIndexer:
             objects = list(self.rels.objects(predicate=predicate))
             if objects:
                 info[solr_field] = str(objects[0])
+        proquest_harvest_objects = list(self.rels.objects(predicate=BUL_NS.proquestHarvest))
+        if proquest_harvest_objects and str(proquest_harvest_objects[0]) == 'true':
+            info['rel_proquest_harvest_bsi'] = True
 
         return info
 
