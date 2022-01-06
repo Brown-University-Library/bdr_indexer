@@ -303,6 +303,7 @@ RELS_EXT_XML = '''<?xml version="1.0" encoding="UTF-8"?>
     <pso:withStatus rdf:resource="http://purl.org/spar/pso/#embargoed"/>
     <fabio:hasEmbargoDate>2018-06-01T00:00:01Z</fabio:hasEmbargoDate>
     <fabio:hasEmbargoDate>2020-06-01T00:00:01Z</fabio:hasEmbargoDate>
+    <bul-rel:proquestHarvest rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</bul-rel:proquestHarvest>
   </rdf:Description>
 </rdf:RDF>
 '''
