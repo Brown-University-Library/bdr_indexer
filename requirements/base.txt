@@ -28,7 +28,7 @@ inflection==0.5.1
     # via -r base.in
 isodate==0.6.0
     # via rdflib
-lxml==4.7.1
+lxml==4.9.1
     # via eulxml
 ply==3.8
     # via
