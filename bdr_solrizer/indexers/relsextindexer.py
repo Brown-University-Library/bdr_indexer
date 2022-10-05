@@ -183,6 +183,11 @@ class RelsExtIndexer:
         transcript_objs = self.objects_for_predicate(predicate=BUL_NS.isTranscriptOf)
         return transcript_objs
 
+    @property
+    def translation_objs(self):
+        translation_objs = self.objects_for_predicate(predicate=BUL_NS.isTranslationOf)
+        return translation_objs
+
     def index_rdf(self, rdfns, indexed_terms, prefix=''):
         rdf_dict={}
         for term in indexed_terms:
@@ -246,6 +251,7 @@ class RelsExtIndexer:
             'rel_stream_uri_ssi': self.stream_uri,
             'rel_has_pagination_ssim': self.pagination_objs,
             'rel_is_transcript_of_ssim': self.transcript_objs,
+            'rel_is_translation_of_ssim': self.translation_objs,
             # Legacy solr fields
             'object_type': self.object_type,
             'stream_uri_s': self.stream_uri,

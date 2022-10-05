@@ -267,8 +267,22 @@ class StorageObject:
                 pass
 
     @property
+    def original_for_translation_pid(self):
+        objects = list(self.rels_ext.objects(predicate=BUL_NS.isTranslationOf))
+        if objects:
+            return str(objects[0]).split('/')[-1]
+
+    @property
+    def original_for_translation_object(self):
+        if self.original_for_translation_pid:
+            try:
+                return StorageObject(self.original_for_translation_pid, use_object_cache=True)
+            except (ObjectNotFound, ObjectDeleted):
+                pass
+
+    @property
     def ancestors(self):
-        return [self.original_object, self.original_for_transcript_object, self.parent_object]
+        return [self.original_object, self.original_for_transcript_object, self.original_for_translation_object, self.parent_object]
 
     def is_image_child(self):
         if self.parent_pid:
