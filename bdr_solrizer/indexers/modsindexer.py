@@ -679,20 +679,20 @@ class ModsIndexer(CommonIndexer):
                 if record_id.source:
                     field_name = 'mods_record_info_record_identifier_%s_ssim' % self._slugify(record_id.source)
                     self.append_field(field_name, [record_id.text])
-        for child in self.mods.record_info.node.iterchildren():
-            if 'recordInfoNote' in child.tag:
-                type = child.attrib.get('type','')
-                if type:
-                    self.append_field(
-                            'mods_record_info_note_%s_ssim' % self._slugify(type),
-                            [child.text]
+            for child in record_info.node.iterchildren():
+                if 'recordInfoNote' in child.tag:
+                    type = child.attrib.get('type','')
+                    if type:
+                        self.append_field(
+                                'mods_record_info_note_%s_ssim' % self._slugify(type),
+                                [child.text]
+                        )
+                    label = child.attrib.get('displayLabel','')
+                    if label:
+                        self.append_field(
+                                'mods_record_info_note_%s_ssim' % self._slugify(label),
+                                [child.text]
                     )
-                label = child.attrib.get('displayLabel','')
-                if label:
-                    self.append_field(
-                            'mods_record_info_note_%s_ssim' % self._slugify(label),
-                            [child.text]
-                )
         return self
 
     def index_names(self):
