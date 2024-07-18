@@ -712,24 +712,25 @@ class ModsIndexer(CommonIndexer):
                     if dates and dates[0]:
                         date_display = f', {dates[0]}'
                     if roles and roles[0]:
-                        role = roles[0]
-                        role_display = f' ({role})'
-                        self.append_field('mods_role_ssim', role)
-                        self.append_field(
-                            f'mods_role_{self._slugify(role)}_ssim',
-                            namepart
-                        )
-                        if role.endswith(' place'):
-                            self.append_field('mods_name_place_ssim', namepart)
-                        else:
-                            self.append_field('mods_name_nonplace_ssim', namepart)
-                        if role.lower() == 'creator':
-                            self.append_field('creator', namepart)
-                            if not has_creator_ssort:
-                                self.set_field('creator_ssort', namepart)
-                                has_creator_ssort = True
-                        else:
-                            self.append_field('contributor', namepart)
+                        # role = roles[0]
+                        role_display = f' ({", ".join(roles)})'
+                        for role in roles:
+                            self.append_field('mods_role_ssim', role)
+                            self.append_field(
+                                f'mods_role_{self._slugify(role)}_ssim',
+                                namepart
+                            )
+                            if role.endswith(' place'):
+                                self.append_field('mods_name_place_ssim', namepart)
+                            else:
+                                self.append_field('mods_name_nonplace_ssim', namepart)
+                            if role.lower() == 'creator':
+                                self.append_field('creator', namepart)
+                                if not has_creator_ssort:
+                                    self.set_field('creator_ssort', namepart)
+                                    has_creator_ssort = True
+                            else:
+                                self.append_field('contributor', namepart)
                     else:
                         self.append_field('mods_name_nonplace_ssim', namepart)
                     display_form = name.display_form or f'{namepart}{date_display}{role_display}'
