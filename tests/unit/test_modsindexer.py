@@ -495,12 +495,10 @@ class TestModsIndexer(unittest.TestCase):
     def test_record_info_index(self):
         sample_mods = '''
           <mods:recordInfo>
-            <mods:recordContentSource
-            authority="marcorg">RPB</mods:recordContentSource>
-            <mods:recordCreationDate
-            encoding="iso8601">20091218</mods:recordCreationDate>
-            <mods:recordIdentifier
-            source="RPB">a1234567</mods:recordIdentifier>
+            <mods:recordContentSource authority="marcorg">RPB</mods:recordContentSource>
+            <mods:recordCreationDate encoding="iso8601">20091218</mods:recordCreationDate>
+            <mods:recordIdentifier source="RPB">a1234567</mods:recordIdentifier>
+            <mods:recordInfoNote type="hallhoag">note 1</mods:recordInfoNote>
           </mods:recordInfo>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
