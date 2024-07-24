@@ -102,6 +102,9 @@ class TestModsIndexer(unittest.TestCase):
             <mods:role>
               <mods:roleTerm type="text" authority="marcrelator" authorityURI="http://id.loc.gov/vocabulary/relators" valueURI="http://id.loc.gov/vocabulary/relators/cre">Creator</mods:roleTerm>
             </mods:role>
+            <mods:role>
+              <mods:roleTerm type="text">director</mods:roleTerm>
+            </mods:role>
           </mods:name>
           <mods:name type="personal">
             <mods:namePart>Baker, Jim</mods:namePart>
@@ -136,7 +139,7 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(
                 index_data['contributor_display'],
                 [
-                    'Smith, Tom, 1803 or 4-1860 (Creator)',
+                    'Smith, Tom, 1803 or 4-1860 (Creator, director)',
                     'Baker, Jim, 1718-1762 (director)',
                     'Wilson, Jane',
                     'Brown University. English (sponsor)',
@@ -495,12 +498,10 @@ class TestModsIndexer(unittest.TestCase):
     def test_record_info_index(self):
         sample_mods = '''
           <mods:recordInfo>
-            <mods:recordContentSource
-            authority="marcorg">RPB</mods:recordContentSource>
-            <mods:recordCreationDate
-            encoding="iso8601">20091218</mods:recordCreationDate>
-            <mods:recordIdentifier
-            source="RPB">a1234567</mods:recordIdentifier>
+            <mods:recordContentSource authority="marcorg">RPB</mods:recordContentSource>
+            <mods:recordCreationDate encoding="iso8601">20091218</mods:recordCreationDate>
+            <mods:recordIdentifier source="RPB">a1234567</mods:recordIdentifier>
+            <mods:recordInfoNote type="hallhoag">note 1</mods:recordInfoNote>
           </mods:recordInfo>
         '''
         indexer = self.indexer_for_mods_string(sample_mods)
@@ -512,6 +513,10 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(
                 index_data['mods_record_info_record_identifier_rpb_ssim'],
                 ['a1234567']
+        )
+        self.assertEqual(
+                index_data['mods_record_info_note_hallhoag_ssim'],
+                ['note 1']
         )
 
     def test_constituents_index(self):
@@ -646,7 +651,7 @@ class TestModsIndexer(unittest.TestCase):
         index_data = indexer.index_names().data
         self.assertEqual(sorted(index_data['mods_role_ssim']), [u'Creator', u'director', u'distribution place', u'sponsor'])
         self.assertEqual(index_data['mods_role_creator_ssim'], [u'Smith, Tom'])
-        self.assertEqual(index_data['mods_role_director_ssim'], [u'Baker, Jim'])
+        self.assertEqual(index_data['mods_role_director_ssim'], [u'Smith, Tom', u'Baker, Jim'])
         self.assertEqual(index_data['mods_role_sponsor_ssim'], [u'Brown University. English'])
 
     def test_subject_joined_index(self):
