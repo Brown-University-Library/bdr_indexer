@@ -2,7 +2,7 @@ bdrocfl
 bdrxml
 django-dotenv
 rdflib
-requests
+requests==2.27.1
 redis
 rq==0.13.0
 diskcache
