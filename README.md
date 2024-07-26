@@ -7,3 +7,4 @@ Development/Tests
  - pip install -e .[dev]
  - python run\_tests.py
 
+test
