@@ -8,3 +8,4 @@ Code for BDR solr indexing.
 - pip install --upgrade pip setuptools
 - pip install -e .[dev]
 - python run\_tests.py
+
