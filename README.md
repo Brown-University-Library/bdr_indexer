@@ -24,7 +24,7 @@ ln -sfn ./venv_indexer env
 
 cd bdr_indexer
 source ../env/bin/activate
-uv pip sync ./requirements/dev.txt
+uv pip sync ./requirements/local.txt
 ```
 
 Run tests from the `bdr_indexer` directory:
