@@ -2,10 +2,34 @@
 
 Code for BDR solr indexing.
 
-## Development/Tests
 
-- create & activate a virtual environment
-- pip install --upgrade pip setuptools
-- pip install -e .[dev]
-- python run\_tests.py
+## Local Development Installation
 
+For local development, install the virtualenv in the outer directory that
+contains this repository, then point an `env` symlink at it. For example, from
+an outer directory shaped like this:
+
+bdr_indexer_stuff/
+  bdr_indexer/
+  env -> ./venv_indexer
+  venv_indexer/
+```
+
+create and populate the environment with `uv`:
+
+```bash
+cd /path/to/bdr_indexer_stuff
+uv venv --python 3.8 venv_indexer
+ln -sfn ./venv_indexer env
+
+cd bdr_indexer
+source ../env/bin/activate
+uv pip sync ./requirements/dev.txt
+```
+
+Run tests from the `bdr_indexer` directory:
+
+```bash
+source ../env/bin/activate
+python run_tests.py
+```
