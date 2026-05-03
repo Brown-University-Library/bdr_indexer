@@ -2,6 +2,8 @@
 
 _Created: 2026-05-01; scope: planning only, no code changes._
 
+_This plan can be deleted -- it's saved as a historical artifact._
+
 ## Purpose
 
 Update `bdr_indexer` so BDR indexing emits the canonical Solr field:
