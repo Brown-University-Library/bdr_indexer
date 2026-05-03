@@ -4,8 +4,9 @@ import inflection
 import roman
 from eulxml.xmlmap import load_xmlobject_from_string
 from bdrxml import mods
-from .common import CommonIndexer
+from .common import CommonIndexer, IMAGE_ACCESSIBILITY_ALT_TEXT_KEY, IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD
 from .. import settings
+from ..logger import logger
 
 
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
@@ -605,6 +606,15 @@ class ModsIndexer(CommonIndexer):
 
     def index_notes(self):
         for note in self.mods.notes:
+            if note.type == IMAGE_ACCESSIBILITY_ALT_TEXT_KEY:
+                note_text = note.text.strip() if note.text else ''
+                if note_text:
+                    if IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD in self.data:
+                        logger.warning('Multiple MODS image accessibility alt text notes found; using first value')
+                    else:
+                        self.set_field(IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD, note_text)
+                continue
+
             # add display label to text for note field
             if note.label:
                 final_char = note.label.strip()[-1:]
