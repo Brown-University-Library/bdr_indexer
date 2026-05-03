@@ -143,6 +143,106 @@ class TestSolrizer(unittest.TestCase):
         self.assertEqual(actual_solr_doc['add']['doc'][settings.DATE_FIELD], '2002-03-04T00:00:00Z')
         self.assertEqual(actual_solr_doc['add']['doc'][settings.RESOURCE_TYPE_FIELD], 'maps')
 
+    def test_solrize_image_accessibility_alt_text_json(self):
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('image_accessibility_alt_text.json', json.dumps({
+                        'image_accessibility_alt_text': 'JSON image description.'
+                    }).encode('utf8')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(
+                actual_solr_doc['add']['doc']['image_accessibility_alt_text_ssi'],
+                'JSON image description.'
+        )
+
+    def test_invalid_image_accessibility_alt_text_json_does_not_break_indexing(self):
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('image_accessibility_alt_text.json', b'{not valid json'),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertNotIn('image_accessibility_alt_text_ssi', actual_solr_doc['add']['doc'])
+
+    def test_mods_image_accessibility_alt_text_takes_precedence_over_json(self):
+        mods_xml = b'''
+        <mods:mods xmlns:mods="http://www.loc.gov/mods/v3">
+          <mods:note type="image_accessibility_alt_text">MODS image description.</mods:note>
+        </mods:mods>
+        '''
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('MODS', mods_xml),
+                    ('image_accessibility_alt_text.json', json.dumps({
+                        'image_accessibility_alt_text': 'JSON image description.'
+                    }).encode('utf8')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(
+                actual_solr_doc['add']['doc']['image_accessibility_alt_text_ssi'],
+                'MODS image description.'
+        )
+
+    def test_mods_image_accessibility_alt_text_takes_precedence_over_dwc(self):
+        mods_xml = b'''
+        <mods:mods xmlns:mods="http://www.loc.gov/mods/v3">
+          <mods:note type="image_accessibility_alt_text">MODS image description.</mods:note>
+        </mods:mods>
+        '''
+        dwc_xml = b'''<?xml version='1.0' encoding='UTF-8'?>
+        <sdr:SimpleDarwinRecordSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/">
+          <sdr:SimpleDarwinRecord>
+            <dwc:dynamicProperties>{"image_accessibility_alt_text":"DWC image description."}</dwc:dynamicProperties>
+          </sdr:SimpleDarwinRecord>
+        </sdr:SimpleDarwinRecordSet>
+        '''
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('MODS', mods_xml),
+                    ('DWC', dwc_xml),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(
+                actual_solr_doc['add']['doc']['image_accessibility_alt_text_ssi'],
+                'MODS image description.'
+        )
+
+    def test_dwc_image_accessibility_alt_text_takes_precedence_over_json(self):
+        dwc_xml = b'''<?xml version='1.0' encoding='UTF-8'?>
+        <sdr:SimpleDarwinRecordSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/">
+          <sdr:SimpleDarwinRecord>
+            <dwc:dynamicProperties>{"image_accessibility_alt_text":"DWC image description."}</dwc:dynamicProperties>
+          </sdr:SimpleDarwinRecord>
+        </sdr:SimpleDarwinRecordSet>
+        '''
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('DWC', dwc_xml),
+                    ('image_accessibility_alt_text.json', json.dumps({
+                        'image_accessibility_alt_text': 'JSON image description.'
+                    }).encode('utf8')),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(
+                actual_solr_doc['add']['doc']['image_accessibility_alt_text_ssi'],
+                'DWC image description.'
+        )
+
     def test_mods_resource_type_mapped_to_primo(self):
         mods_obj = mods.make_mods()
         mods_obj.resource_types.append(mods.ResourceType(text='text'))

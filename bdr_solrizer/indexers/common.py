@@ -5,6 +5,9 @@ from .. import utils
 
 RE_HASHSTART = re.compile(r'^\#')
 NON_WORD_CHAR_PATTERN = re.compile(r'\W')
+IMAGE_ACCESSIBILITY_ALT_TEXT_KEY = "image_accessibility_alt_text"
+IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD = "image_accessibility_alt_text_ssi"
+IMAGE_ACCESSIBILITY_ALT_TEXT_JSON_DS_ID = "image_accessibility_alt_text.json"
 
 
 def clean_hash(text):

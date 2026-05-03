@@ -1,10 +1,10 @@
 import unittest
+
 from bdrxml import darwincore
-from eulxml.xmlmap import load_xmlobject_from_string
+
 from bdr_solrizer.indexers import SimpleDarwinRecordIndexer
 
-
-SIMPLE_DARWIN_SET_XML = '''<?xml version='1.0' encoding='UTF-8'?>
+SIMPLE_DARWIN_SET_XML = """<?xml version='1.0' encoding='UTF-8'?>
 <sdr:SimpleDarwinRecordSet xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://rs.tdwg.org/dwc/xsd/simpledarwincore/ http://rs.tdwg.org/dwc/xsd/tdwg_dwc_simple.xsd">
   <sdr:SimpleDarwinRecord>
     <dc:type>Test</dc:type>
@@ -40,21 +40,33 @@ SIMPLE_DARWIN_SET_XML = '''<?xml version='1.0' encoding='UTF-8'?>
     <dwc:dynamicProperties>iucnStatus=vulnerable; distribution=Neuquen, Argentina</dwc:dynamicProperties>
  </sdr:SimpleDarwinRecord>
 </sdr:SimpleDarwinRecordSet>
-'''
-SIMPLE_DARWIN_SNIPPET = '''
+"""
+
+SIMPLE_DARWIN_SNIPPET = """
   <sdr:SimpleDarwinRecord>
     <dwc:catalogNumber>catalog number</dwc:catalogNumber>
   </sdr:SimpleDarwinRecord>
-'''
-CREATED_SIMPLE_DARWIN_SET_XML = '''<?xml version='1.0' encoding='UTF-8'?>
+"""
+
+CREATED_SIMPLE_DARWIN_SET_XML = (
+    """<?xml version='1.0' encoding='UTF-8'?>
 <sdr:SimpleDarwinRecordSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/" xsi:schemaLocation="http://rs.tdwg.org/dwc/xsd/simpledarwincore/ http://rs.tdwg.org/dwc/xsd/tdwg_dwc_simple.xsd">
 %s
 </sdr:SimpleDarwinRecordSet>
-''' % SIMPLE_DARWIN_SNIPPET
+"""
+    % SIMPLE_DARWIN_SNIPPET
+)
+
+DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML = """<?xml version='1.0' encoding='UTF-8'?>
+<sdr:SimpleDarwinRecordSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/" xsi:schemaLocation="http://rs.tdwg.org/dwc/xsd/simpledarwincore/ http://rs.tdwg.org/dwc/xsd/tdwg_dwc_simple.xsd">
+  <sdr:SimpleDarwinRecord>
+    <dwc:dynamicProperties>%s</dwc:dynamicProperties>
+  </sdr:SimpleDarwinRecord>
+</sdr:SimpleDarwinRecordSet>
+"""
 
 
 class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
-
     def test_indexing(self):
         index_data = SimpleDarwinRecordIndexer(SIMPLE_DARWIN_SET_XML.encode('utf8')).index_data()
         self.assertEqual(index_data['dwc_type_ssi'], 'Test')
@@ -68,6 +80,45 @@ class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
         self.assertEqual(index_data['dwc_taxon_rank_ssi'], 'subspecies')
         self.assertEqual(index_data['dwc_taxon_rank_abbr_ssi'], 'subsp.')
         self.assertTrue('dwc_family_ssi' not in index_data)
+        self.assertEqual(
+            index_data['dwc_dynamic_properties_ssi'],
+            'iucnStatus=vulnerable; distribution=Neuquen, Argentina',
+        )
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+
+    def test_json_dynamic_properties_alt_text_indexing(self):
+        dynamic_properties = '{"image_accessibility_alt_text":" The image description. ","iucnStatus":"vulnerable","distribution":"Neuquen, Argentina"}'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertEqual(index_data['image_accessibility_alt_text_ssi'], 'The image description.')
+        self.assertEqual(
+            index_data['dwc_dynamic_properties_ssi'],
+            '{"distribution":"Neuquen, Argentina","iucnStatus":"vulnerable"}',
+        )
+
+    def test_json_dynamic_properties_alt_text_only(self):
+        dynamic_properties = '{"image_accessibility_alt_text":"The image description."}'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertEqual(index_data['image_accessibility_alt_text_ssi'], 'The image description.')
+        self.assertNotIn('dwc_dynamic_properties_ssi', index_data)
+
+    def test_json_dynamic_properties_non_string_alt_text(self):
+        dynamic_properties = '{"image_accessibility_alt_text":true,"iucnStatus":"vulnerable"}'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with self.assertLogs('rq.worker', level='WARNING'):
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        self.assertEqual(index_data['dwc_dynamic_properties_ssi'], '{"iucnStatus":"vulnerable"}')
+
+    def test_non_json_dynamic_properties_logs_warning_and_indexes_raw_value(self):
+        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with self.assertLogs('rq.worker', level='WARNING') as logs:
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertEqual(index_data['dwc_dynamic_properties_ssi'], dynamic_properties)
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        self.assertIn('Invalid DWC dynamicProperties JSON', logs.output[0])
 
     def test_sparse_record(self):
         index_data = SimpleDarwinRecordIndexer(CREATED_SIMPLE_DARWIN_SET_XML.encode('utf8')).index_data()
@@ -88,4 +139,3 @@ class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

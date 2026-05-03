@@ -77,6 +77,42 @@ class TestModsIndexer(unittest.TestCase):
                 [u'Collection is open for research.', 'Lowercase restriction']
         )
 
+    def test_image_accessibility_alt_text_note_index(self):
+        sample_mods = '''
+          <mods:note type="image_accessibility_alt_text">  A concise image description.  </mods:note>
+          <mods:note type="preferred citation">Citation note</mods:note>
+          <mods:note displayLabel="Public note">Generic note</mods:note>
+        '''
+        indexer = self.indexer_for_mods_string(sample_mods)
+        index_data = indexer.index_notes().data
+        self.assertEqual(
+                index_data['image_accessibility_alt_text_ssi'],
+                'A concise image description.'
+        )
+        self.assertEqual(
+                index_data['note'],
+                ['Citation note', 'Public note: Generic note']
+        )
+        self.assertNotIn('mods_note_image_accessibility_alt_text_ssim', index_data)
+        self.assertEqual(index_data['mods_note_preferred_citation_ssim'], ['Citation note'])
+        self.assertEqual(index_data['mods_note_public_note_ssim'], ['Generic note'])
+
+    def test_multiple_image_accessibility_alt_text_notes_use_first_value(self):
+        sample_mods = '''
+          <mods:note type="image_accessibility_alt_text"></mods:note>
+          <mods:note type="image_accessibility_alt_text">First description.</mods:note>
+          <mods:note type="image_accessibility_alt_text">Second description.</mods:note>
+        '''
+        indexer = self.indexer_for_mods_string(sample_mods)
+        with self.assertLogs('rq.worker', level='WARNING') as logs:
+            index_data = indexer.index_notes().data
+        self.assertEqual(
+                index_data['image_accessibility_alt_text_ssi'],
+                'First description.'
+        )
+        self.assertNotIn('note', index_data)
+        self.assertIn('Multiple MODS image accessibility alt text notes found', logs.output[0])
+
     def test_classification_index(self):
         sample_mods = u'''
               <mods:classification
@@ -869,4 +905,3 @@ def suite():
 
 if __name__ == '__main__':
     unittest.main()
-

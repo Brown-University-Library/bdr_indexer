@@ -20,6 +20,11 @@ from .indexers import (
     CollectionIndexer,
     parse_rdf_xml_into_graph,
 )
+from .indexers.common import (
+    IMAGE_ACCESSIBILITY_ALT_TEXT_KEY,
+    IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD,
+    IMAGE_ACCESSIBILITY_ALT_TEXT_JSON_DS_ID,
+)
 from . import utils
 from .settings import (
         CACHE_DIR,
@@ -356,22 +361,68 @@ class SolrDocBuilder:
              TEIIndexer(tei_bytes).index_data()
         )
 
+    def _get_image_accessibility_alt_text_json_index_data(self) -> dict:
+        if IMAGE_ACCESSIBILITY_ALT_TEXT_JSON_DS_ID not in self.storage_object.active_file_names:
+            return {}
+
+        json_bytes = self.storage_object.get_file_contents(IMAGE_ACCESSIBILITY_ALT_TEXT_JSON_DS_ID)
+        try:
+            json_data = json.loads(json_bytes.decode('utf8'))
+        except (UnicodeDecodeError, ValueError):
+            logger.warning(f'{self.pid} invalid image accessibility alt text JSON')
+            return {}
+
+        if not isinstance(json_data, dict):
+            logger.warning(f'{self.pid} image accessibility alt text JSON is not an object')
+            return {}
+
+        alt_text = json_data.get(IMAGE_ACCESSIBILITY_ALT_TEXT_KEY)
+        if not isinstance(alt_text, str):
+            if alt_text is not None:
+                logger.warning(f'{self.pid} image accessibility alt text JSON value is not a string')
+            return {}
+
+        alt_text = ' '.join(alt_text.split())
+        if not alt_text:
+            return {}
+        return {IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD: alt_text}
+
+    def _resolve_image_accessibility_alt_text(self, source_data: list) -> dict:
+        for data in source_data:
+            alt_text = data.get(IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD)
+            if alt_text:
+                return {IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD: alt_text}
+        return {}
+
     def descriptive_data(self):
-        descriptive_index = {}
+        mods_index = {}
+        dwc_index = {}
+        tei_index = {}
+        alt_text_json_index = {}
 
         mods_bytes = self.storage_object.get_metadata_bytes_to_index('MODS')
         if mods_bytes:
-            descriptive_index.update(
-                self._get_mods_index_data(mods_bytes)
-            )
+            mods_index = self._get_mods_index_data(mods_bytes)
 
         dwc_bytes = self.storage_object.get_metadata_bytes_to_index('DWC')
         if dwc_bytes:
-            self._add_dwc_index_data(dwc_bytes, descriptive_index)
+            self._add_dwc_index_data(dwc_bytes, dwc_index)
 
         tei_bytes = self.storage_object.get_metadata_bytes_to_index('TEI')
         if tei_bytes:
-            self._add_tei_index_data(tei_bytes, descriptive_index)
+            self._add_tei_index_data(tei_bytes, tei_index)
+
+        alt_text_json_index = self._get_image_accessibility_alt_text_json_index_data()
+
+        descriptive_index = {}
+        for source_data in [mods_index, dwc_index, tei_index, alt_text_json_index]:
+            descriptive_index.update(source_data)
+
+        descriptive_index.update(
+            self._resolve_image_accessibility_alt_text(
+                [mods_index, dwc_index, tei_index, alt_text_json_index]
+            )
+        )
 
         return descriptive_index
 
