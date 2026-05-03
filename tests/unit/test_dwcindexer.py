@@ -1,4 +1,12 @@
+"""Test conservative Darwin Core dynamicProperties parsing.
+
+Legacy semicolon-delimited dynamicProperties are indexed only when the whole
+value can be parsed as unambiguous key-value pairs; ambiguous splitting warns
+and emits no dynamicProperties-derived fields.
+"""
+
 import unittest
+from unittest.mock import patch
 
 from bdrxml import darwincore
 
@@ -68,7 +76,8 @@ DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML = """<?xml version='1.0' encoding='UTF-
 
 class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
     def test_indexing(self):
-        index_data = SimpleDarwinRecordIndexer(SIMPLE_DARWIN_SET_XML.encode('utf8')).index_data()
+        with patch('bdr_solrizer.indexers.dwcindexer.logger.warning') as warning:
+            index_data = SimpleDarwinRecordIndexer(SIMPLE_DARWIN_SET_XML.encode('utf8')).index_data()
         self.assertEqual(index_data['dwc_type_ssi'], 'Test')
         self.assertEqual(index_data['dwc_recorded_by_ssi'], 'recorded by')
         self.assertEqual(index_data['dwc_record_number_ssi'], '2')
@@ -85,6 +94,7 @@ class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
             'iucnStatus=vulnerable; distribution=Neuquen, Argentina',
         )
         self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        warning.assert_not_called()
 
     def test_json_dynamic_properties_alt_text_indexing(self):
         dynamic_properties = '{"image_accessibility_alt_text":" The image description. ","iucnStatus":"vulnerable","distribution":"Neuquen, Argentina"}'
@@ -111,14 +121,53 @@ class SimpleDarwinRecordSetIndexerTest(unittest.TestCase):
         self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
         self.assertEqual(index_data['dwc_dynamic_properties_ssi'], '{"iucnStatus":"vulnerable"}')
 
-    def test_non_json_dynamic_properties_logs_warning_and_indexes_raw_value(self):
-        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina'
+    def test_legacy_dynamic_properties_bare_string_warns_and_emits_no_dynamic_fields(self):
+        dynamic_properties = 'foo'
         dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
         with self.assertLogs('rq.worker', level='WARNING') as logs:
             index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertNotIn('dwc_dynamic_properties_ssi', index_data)
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        self.assertIn('Invalid DWC dynamicProperties key-pair', logs.output[0])
+
+    def test_legacy_dynamic_properties_alt_text_indexing(self):
+        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina; image_accessibility_alt_text= The image description.'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with patch('bdr_solrizer.indexers.dwcindexer.logger.warning') as warning:
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertEqual(
+            index_data['dwc_dynamic_properties_ssi'],
+            'iucnStatus=vulnerable; distribution=Neuquen, Argentina',
+        )
+        self.assertEqual(index_data['image_accessibility_alt_text_ssi'], 'The image description.')
+        warning.assert_not_called()
+
+    def test_legacy_dynamic_properties_alt_text_with_semicolon_warns_and_emits_no_dynamic_fields(self):
+        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina; image_accessibility_alt_text= The beginning; the end.'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with self.assertLogs('rq.worker', level='WARNING') as logs:
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertNotIn('dwc_dynamic_properties_ssi', index_data)
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        self.assertIn('Invalid DWC dynamicProperties delimiter splitting', logs.output[0])
+
+    def test_legacy_dynamic_properties_invalid_segment_warns_and_emits_no_dynamic_fields(self):
+        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina; box 123; foo=bar'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with self.assertLogs('rq.worker', level='WARNING') as logs:
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
+        self.assertNotIn('dwc_dynamic_properties_ssi', index_data)
+        self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
+        self.assertIn('Invalid DWC dynamicProperties delimiter splitting', logs.output[0])
+
+    def test_legacy_dynamic_properties_valid_pairs_do_not_log_warning(self):
+        dynamic_properties = 'iucnStatus=vulnerable; distribution=Neuquen, Argentina'
+        dwc_xml = DYNAMIC_PROPERTIES_SIMPLE_DARWIN_SET_XML % dynamic_properties
+        with patch('bdr_solrizer.indexers.dwcindexer.logger.warning') as warning:
+            index_data = SimpleDarwinRecordIndexer(dwc_xml.encode('utf8')).index_data()
         self.assertEqual(index_data['dwc_dynamic_properties_ssi'], dynamic_properties)
         self.assertNotIn('image_accessibility_alt_text_ssi', index_data)
-        self.assertIn('Invalid DWC dynamicProperties JSON', logs.output[0])
+        warning.assert_not_called()
 
     def test_sparse_record(self):
         index_data = SimpleDarwinRecordIndexer(CREATED_SIMPLE_DARWIN_SET_XML.encode('utf8')).index_data()
