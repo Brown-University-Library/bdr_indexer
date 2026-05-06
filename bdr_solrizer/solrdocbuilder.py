@@ -321,12 +321,17 @@ class StorageObject:
     def get_path_to_file(self, filename):
         return self._ocfl_object.get_path_to_file(filename)
 
-    def get_metadata_bytes_to_index(self, ds_id):
+    def get_metadata_bytes_to_index_with_directness(self, ds_id: str) -> tuple:
         if ds_id in self.active_file_names:
-            return self.get_file_contents(ds_id)
+            return self.get_file_contents(ds_id), True
         for ancestor in self.ancestors:
             if ancestor and (ds_id in ancestor.active_file_names):
-                return ancestor.get_file_contents( ds_id)
+                return ancestor.get_file_contents(ds_id), False
+        return None, False
+
+    def get_metadata_bytes_to_index(self, ds_id):
+        metadata_bytes, _is_direct = self.get_metadata_bytes_to_index_with_directness(ds_id)
+        return metadata_bytes
 
 
 class SolrDocBuilder:
@@ -394,23 +399,30 @@ class SolrDocBuilder:
                 return {IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD: alt_text}
         return {}
 
+    def _strip_image_accessibility_alt_text_unless_direct(self, data: dict, is_direct: bool) -> None:
+        if not is_direct:
+            data.pop(IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD, None)
+
     def descriptive_data(self):
         mods_index = {}
         dwc_index = {}
         tei_index = {}
         alt_text_json_index = {}
 
-        mods_bytes = self.storage_object.get_metadata_bytes_to_index('MODS')
+        mods_bytes, mods_is_direct = self.storage_object.get_metadata_bytes_to_index_with_directness('MODS')
         if mods_bytes:
             mods_index = self._get_mods_index_data(mods_bytes)
+            self._strip_image_accessibility_alt_text_unless_direct(mods_index, mods_is_direct)
 
-        dwc_bytes = self.storage_object.get_metadata_bytes_to_index('DWC')
+        dwc_bytes, dwc_is_direct = self.storage_object.get_metadata_bytes_to_index_with_directness('DWC')
         if dwc_bytes:
             self._add_dwc_index_data(dwc_bytes, dwc_index)
+            self._strip_image_accessibility_alt_text_unless_direct(dwc_index, dwc_is_direct)
 
-        tei_bytes = self.storage_object.get_metadata_bytes_to_index('TEI')
+        tei_bytes, tei_is_direct = self.storage_object.get_metadata_bytes_to_index_with_directness('TEI')
         if tei_bytes:
             self._add_tei_index_data(tei_bytes, tei_index)
+            self._strip_image_accessibility_alt_text_unless_direct(tei_index, tei_is_direct)
 
         alt_text_json_index = self._get_image_accessibility_alt_text_json_index_data()
 
