@@ -76,49 +76,65 @@ Example:
 
 ## Recommended Implementation
 
-### 1. Add a helper to confirm direct metadata
+### 1. Add provenance to metadata lookup
 
-Add a small helper on `StorageObject` or `SolrDocBuilder` to make direct-file confirmation explicit.
+Add a small helper on `StorageObject` that returns both the metadata bytes and whether those exact bytes came from the current object.
 
-The helper should be conservative: only a positive confirmation that the datastream is active on the current object should allow `image_accessibility_alt_text_ssi` to remain in that source's indexed data. Missing, ambiguous, or future unsupported source-location states should be treated as not direct, and the alt-text field should be stripped.
+The goal is to bind provenance to the lookup result. A separate after-the-fact check like `ds_id in self.storage_object.active_file_names` is probably correct under the current implementation, but it infers directness separately from the bytes that were returned. Returning both together is more robust if metadata lookup later grows more complex.
 
-Recommended minimal option on `SolrDocBuilder`:
+Recommended implementation on `StorageObject`:
 
 ```python
-def _confirm_direct_metadata(self, ds_id: str) -> bool:
-    return ds_id in self.storage_object.active_file_names
+def get_metadata_bytes_to_index_with_directness(self, ds_id):
+    if ds_id in self.active_file_names:
+        return self.get_file_contents(ds_id), True
+    for ancestor in self.ancestors:
+        if ancestor and (ds_id in ancestor.active_file_names):
+            return ancestor.get_file_contents(ds_id), False
+    return None, False
 ```
 
-This keeps `get_metadata_bytes_to_index()` untouched and makes the special alt-text rule local to Solr document assembly.
+Then preserve the existing public behavior by making `get_metadata_bytes_to_index()` wrap the new helper:
+
+```python
+def get_metadata_bytes_to_index(self, ds_id):
+    metadata_bytes, _is_direct = self.get_metadata_bytes_to_index_with_directness(ds_id)
+    return metadata_bytes
+```
+
+This keeps existing callers working and preserves the current ancestor fallback behavior.
+
+This should not add meaningful OCFL/storage load because it performs the same current-object and ancestor checks that `get_metadata_bytes_to_index()` already performs. It only returns an extra boolean from the same lookup path.
 
 ### 2. Strip alt text unless direct metadata is confirmed
 
-Keep using `get_metadata_bytes_to_index()` for `MODS`, `DWC`, and `TEI`, so ordinary metadata inheritance stays intact.
+Use `get_metadata_bytes_to_index_with_directness()` for `MODS`, `DWC`, and `TEI` inside `SolrDocBuilder.descriptive_data()`. Ordinary metadata inheritance stays intact because the same bytes are still indexed whether they came from the direct object or from an ancestor.
 
-Immediately after indexing each source, remove `image_accessibility_alt_text_ssi` unless the source file is confirmed to be directly present on the current object.
+Immediately after indexing each source, remove `image_accessibility_alt_text_ssi` unless the returned bytes are confirmed to have come from the current object.
 
 Suggested helper:
 
 ```python
-def _strip_image_accessibility_alt_text_unless_direct(self, data: dict, ds_id: str) -> None:
-    if not self._confirm_direct_metadata(ds_id):
+def _strip_image_accessibility_alt_text_unless_direct(self, data: dict, is_direct: bool) -> None:
+    if not is_direct:
         data.pop(IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD, None)
 ```
 
 Usage in `descriptive_data()`:
 
 ```python
-mods_bytes = self.storage_object.get_metadata_bytes_to_index('MODS')
+mods_bytes, mods_is_direct = self.storage_object.get_metadata_bytes_to_index_with_directness('MODS')
 if mods_bytes:
     mods_index = self._get_mods_index_data(mods_bytes)
-    self._strip_image_accessibility_alt_text_unless_direct(mods_index, 'MODS')
+    self._strip_image_accessibility_alt_text_unless_direct(mods_index, mods_is_direct)
 ```
 
 Apply the same pattern to DWC and TEI.
 
 This approach is intentionally conservative:
 
-- It does not change metadata lookup.
+- It does not change the lookup order or fallback behavior.
+- It avoids duplicating source-location inference outside the lookup itself.
 - It does not require changing `ModsIndexer` or `SimpleDarwinRecordIndexer`.
 - It does not require source indexers to know whether bytes came from the current object or an ancestor.
 - It preserves all non-alt-text fields from inherited metadata.
@@ -226,6 +242,7 @@ Reasoning:
 - It avoids changing the indexer classes' public behavior when used directly in tests or elsewhere.
 - It keeps all ancestor metadata behavior intact.
 - It makes the direct-only rule visible where inherited metadata is assembled.
+- The provenance-returning lookup keeps the strip decision tied to the exact metadata bytes that were indexed.
 
 No user decision needed unless avoiding even temporary parsing from ancestor bytes is important for logging/noise reasons.
 
@@ -239,10 +256,13 @@ No user decision needed unless TEI gets a different source-of-truth rule later.
 
 1. Add Solrizer test: parent MODS alt text is not inherited, while normal parent MODS metadata still is.
 2. Add Solrizer test: parent DWC alt text is not inherited, while normal parent DWC metadata still is.
-3. Add the small `SolrDocBuilder` helper that removes `image_accessibility_alt_text_ssi` from source data unless the source datastream is confirmed direct.
-4. Apply the helper after MODS, DWC, and TEI source indexing in `descriptive_data()`.
-5. Run the focused Solrizer tests.
-6. Run the full test suite from the project root:
+3. Add `StorageObject.get_metadata_bytes_to_index_with_directness()`.
+4. Update `StorageObject.get_metadata_bytes_to_index()` to wrap the new helper, preserving existing caller behavior.
+5. Add the small `SolrDocBuilder` helper that removes `image_accessibility_alt_text_ssi` from source data unless the returned metadata bytes are confirmed direct.
+6. Use the provenance-returning lookup for MODS, DWC, and TEI in `descriptive_data()`.
+7. Apply the strip helper after MODS, DWC, and TEI source indexing.
+8. Run the focused Solrizer tests.
+9. Run the full test suite from the project root:
 
 ```shell
 source ../env/bin/activate
