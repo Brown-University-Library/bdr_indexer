@@ -243,6 +243,67 @@ class TestSolrizer(unittest.TestCase):
                 'DWC image description.'
         )
 
+    def test_parent_mods_image_accessibility_alt_text_is_not_inherited(self):
+        parent_pid = 'testsuite:2'
+        parent_mods = b'''
+        <mods:mods xmlns:mods="http://www.loc.gov/mods/v3">
+          <mods:titleInfo>
+            <mods:title>parent title</mods:title>
+          </mods:titleInfo>
+          <mods:note type="image_accessibility_alt_text">Parent image description.</mods:note>
+        </mods:mods>
+        '''
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=parent_pid,
+                files=[
+                    ('MODS', parent_mods),
+                ])
+        rels_ext = Graph()
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), model_ns.hasModel, URIRef('info:fedora/bdr-cmodel:image')) )
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), relsext_ns.isPartOf, URIRef(f'info:fedora/{parent_pid}')) )
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('RELS-EXT', rels_ext.serialize(format='xml')),
+                    ('JPG', b''),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job'):
+                    solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc']['primary_title'], 'parent title')
+        self.assertNotIn('image_accessibility_alt_text_ssi', actual_solr_doc['add']['doc'])
+
+    def test_parent_dwc_image_accessibility_alt_text_is_not_inherited(self):
+        parent_pid = 'testsuite:2'
+        parent_dwc = b'''<?xml version='1.0' encoding='UTF-8'?>
+        <sdr:SimpleDarwinRecordSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/terms/" xmlns:dwc="http://rs.tdwg.org/dwc/terms/" xmlns:sdr="http://rs.tdwg.org/dwc/xsd/simpledarwincore/">
+          <sdr:SimpleDarwinRecord>
+            <dwc:catalogNumber>parent catalog number</dwc:catalogNumber>
+            <dwc:dynamicProperties>{"image_accessibility_alt_text":"Parent DWC image description.","iucnStatus":"vulnerable"}</dwc:dynamicProperties>
+          </sdr:SimpleDarwinRecord>
+        </sdr:SimpleDarwinRecordSet>
+        '''
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=parent_pid,
+                files=[
+                    ('DWC', parent_dwc),
+                ])
+        rels_ext = Graph()
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), model_ns.hasModel, URIRef('info:fedora/bdr-cmodel:image')) )
+        rels_ext.add( (URIRef(f'info:fedora/{self.pid}'), relsext_ns.isPartOf, URIRef(f'info:fedora/{parent_pid}')) )
+        test_utils.create_object(storage_root=OCFL_ROOT, pid=self.pid,
+                files=[
+                    ('RELS-EXT', rels_ext.serialize(format='xml')),
+                    ('JPG', b''),
+                ])
+        with patch('bdr_solrizer.solrizer.Solrizer._queue_dependent_object_jobs'):
+            with patch('bdr_solrizer.solrizer.Solrizer._post_to_solr') as post_to_solr:
+                with patch('bdr_solrizer.solrizer.queue_solrize_job'):
+                    solrizer.solrize(self.pid)
+        actual_solr_doc = json.loads(post_to_solr.mock_calls[0].args[0])
+        self.assertEqual(actual_solr_doc['add']['doc']['dwc_catalog_number_ssi'], 'parent catalog number')
+        self.assertEqual(actual_solr_doc['add']['doc']['dwc_dynamic_properties_ssi'], '{"iucnStatus":"vulnerable"}')
+        self.assertNotIn('image_accessibility_alt_text_ssi', actual_solr_doc['add']['doc'])
+
     def test_mods_resource_type_mapped_to_primo(self):
         mods_obj = mods.make_mods()
         mods_obj.resource_types.append(mods.ResourceType(text='text'))
