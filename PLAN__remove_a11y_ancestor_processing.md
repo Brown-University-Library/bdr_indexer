@@ -76,30 +76,32 @@ Example:
 
 ## Recommended Implementation
 
-### 1. Add a helper to identify direct metadata
+### 1. Add a helper to confirm direct metadata
 
-Add a small helper on `StorageObject` or `SolrDocBuilder` to make direct-file checks explicit.
+Add a small helper on `StorageObject` or `SolrDocBuilder` to make direct-file confirmation explicit.
+
+The helper should be conservative: only a positive confirmation that the datastream is active on the current object should allow `image_accessibility_alt_text_ssi` to remain in that source's indexed data. Missing, ambiguous, or future unsupported source-location states should be treated as not direct, and the alt-text field should be stripped.
 
 Recommended minimal option on `SolrDocBuilder`:
 
 ```python
-def _has_direct_metadata(self, ds_id: str) -> bool:
+def _confirm_direct_metadata(self, ds_id: str) -> bool:
     return ds_id in self.storage_object.active_file_names
 ```
 
 This keeps `get_metadata_bytes_to_index()` untouched and makes the special alt-text rule local to Solr document assembly.
 
-### 2. Strip ancestor-derived alt text after each metadata source is indexed
+### 2. Strip alt text unless direct metadata is confirmed
 
 Keep using `get_metadata_bytes_to_index()` for `MODS`, `DWC`, and `TEI`, so ordinary metadata inheritance stays intact.
 
-Immediately after indexing each source, remove `image_accessibility_alt_text_ssi` if the source file was not directly present on the current object.
+Immediately after indexing each source, remove `image_accessibility_alt_text_ssi` unless the source file is confirmed to be directly present on the current object.
 
 Suggested helper:
 
 ```python
-def _remove_indirect_image_accessibility_alt_text(self, data: dict, ds_id: str) -> None:
-    if ds_id not in self.storage_object.active_file_names:
+def _strip_image_accessibility_alt_text_unless_direct(self, data: dict, ds_id: str) -> None:
+    if not self._confirm_direct_metadata(ds_id):
         data.pop(IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD, None)
 ```
 
@@ -109,7 +111,7 @@ Usage in `descriptive_data()`:
 mods_bytes = self.storage_object.get_metadata_bytes_to_index('MODS')
 if mods_bytes:
     mods_index = self._get_mods_index_data(mods_bytes)
-    self._remove_indirect_image_accessibility_alt_text(mods_index, 'MODS')
+    self._strip_image_accessibility_alt_text_unless_direct(mods_index, 'MODS')
 ```
 
 Apply the same pattern to DWC and TEI.
@@ -120,6 +122,7 @@ This approach is intentionally conservative:
 - It does not require changing `ModsIndexer` or `SimpleDarwinRecordIndexer`.
 - It does not require source indexers to know whether bytes came from the current object or an ancestor.
 - It preserves all non-alt-text fields from inherited metadata.
+- It fails closed for alt text: without direct-object confirmation, `image_accessibility_alt_text_ssi` is removed.
 
 ### 3. Leave `image_accessibility_alt_text.json` direct-only
 
@@ -236,7 +239,7 @@ No user decision needed unless TEI gets a different source-of-truth rule later.
 
 1. Add Solrizer test: parent MODS alt text is not inherited, while normal parent MODS metadata still is.
 2. Add Solrizer test: parent DWC alt text is not inherited, while normal parent DWC metadata still is.
-3. Add the small `SolrDocBuilder` helper that removes `image_accessibility_alt_text_ssi` from source data when the source datastream is not direct.
+3. Add the small `SolrDocBuilder` helper that removes `image_accessibility_alt_text_ssi` from source data unless the source datastream is confirmed direct.
 4. Apply the helper after MODS, DWC, and TEI source indexing in `descriptive_data()`.
 5. Run the focused Solrizer tests.
 6. Run the full test suite from the project root:
@@ -287,3 +290,15 @@ Tasks:
 - If there are any decision-points -- clarify them.
 
 - Add this prompt at the bottom under the heading "Original prompt". Thx!
+
+### Followup prompt
+
+In general, I like the fix you propose.
+
+One thing I'd like to change...
+
+In your `bdr_indexer/PLAN__remove_a11y_ancestor_processing.md` plan -- the a11y-text-strip will occur _if_ confirmation is received that the item is a direct-object.
+
+I'd like to adjust that logic so that the strip will occur _unless_ confirmation is received to indicate it should _not_ be stripped.
+
+Please add this prompt under a "Followup prompt" subheading.
