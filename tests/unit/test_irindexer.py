@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from diskcache import Cache
-import responses
 from bdrxml import irMetadata
 from bdr_solrizer.indexers import IRIndexer
 from bdr_solrizer.settings import CACHE_DIR
