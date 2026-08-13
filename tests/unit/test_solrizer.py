@@ -9,7 +9,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
-import responses
 from rdflib import Graph, URIRef
 from diskcache import Cache
 from bdrxml import irMetadata, rights, mods, darwincore

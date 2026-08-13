@@ -19,32 +19,32 @@ MODS, DWC, and TEI can fall back to related ancestor objects when direct metadat
 The repository also includes command-line helpers for queuing PIDs, starting workers, requeueing or inspecting failed jobs, clearing ZIP jobs, generating the resource-type SQLite lookup database, and running the unit test suite.
 
 
+## Requirements
+
+- [uv](https://docs.astral.sh/uv/) for Python installation, dependency management, and command execution.
+
+
 ## Local Development Installation
 
-For local development, install the virtualenv in the outer directory that contains this repository, then point an `env` symlink at it. For example, from an outer directory shaped like this:
+From an outer/stuff directory:
 
-```bash
-bdr_indexer_stuff/
-  bdr_indexer/
-  env -> ./venv_indexer
-  venv_indexer/
+```shell
+git clone <repository-url> bdr_indexer
+cd bdr_indexer
 ```
 
-create and populate the environment with `uv`:
+From the `bdr_indexer` directory, create the uv-managed environment and install the application and development dependencies:
 
 ```bash
-cd /path/to/bdr_indexer_stuff/
-uv venv --python 3.8 ./venv_indexer
-ln -sfn ./venv_indexer ./env
-
-cd ./bdr_indexer
-source ../env/bin/activate
-(venv_indexer) uv pip sync ./requirements/local.txt
+uv sync --group local
 ```
 
 Run tests from the `bdr_indexer` directory:
 
 ```bash
-source ../env/bin/activate
-(venv_indexer) python ./run_tests.py
+uv run ./run_tests.py
 ```
+
+Our code update scripts specify the uv syntax for updating our servers.
+
+---
