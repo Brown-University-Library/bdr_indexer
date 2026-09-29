@@ -4,7 +4,13 @@ import inflection
 import roman
 from eulxml.xmlmap import load_xmlobject_from_string
 from bdrxml import mods
-from .common import CommonIndexer, IMAGE_ACCESSIBILITY_ALT_TEXT_KEY, IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD
+from .common import (
+    CommonIndexer,
+    CONTENT_WARNING_KEY,
+    CONTENT_WARNING_SOLR_FIELD,
+    IMAGE_ACCESSIBILITY_ALT_TEXT_KEY,
+    IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD,
+)
 from .. import settings
 from ..logger import logger
 
@@ -606,6 +612,12 @@ class ModsIndexer(CommonIndexer):
 
     def index_notes(self):
         for note in self.mods.notes:
+            if note.type == CONTENT_WARNING_KEY:
+                note_text = note.text.strip() if note.text else ''
+                if note_text:
+                    self.append_field(CONTENT_WARNING_SOLR_FIELD, note_text)
+                continue
+
             if note.type == IMAGE_ACCESSIBILITY_ALT_TEXT_KEY:
                 note_text = note.text.strip() if note.text else ''
                 if note_text:

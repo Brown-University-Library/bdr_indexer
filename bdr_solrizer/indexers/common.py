@@ -8,6 +8,8 @@ NON_WORD_CHAR_PATTERN = re.compile(r'\W')
 IMAGE_ACCESSIBILITY_ALT_TEXT_KEY = "image_accessibility_alt_text"
 IMAGE_ACCESSIBILITY_ALT_TEXT_SOLR_FIELD = "image_accessibility_alt_text_ssi"
 IMAGE_ACCESSIBILITY_ALT_TEXT_JSON_DS_ID = "image_accessibility_alt_text.json"
+CONTENT_WARNING_KEY = "content_warning"
+CONTENT_WARNING_SOLR_FIELD = "content_warning_ssim"
 
 
 def clean_hash(text):
