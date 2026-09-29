@@ -97,6 +97,39 @@ class TestModsIndexer(unittest.TestCase):
         self.assertEqual(index_data['mods_note_preferred_citation_ssim'], ['Citation note'])
         self.assertEqual(index_data['mods_note_public_note_ssim'], ['Generic note'])
 
+    def test_content_warning_note_index(self):
+        sample_mods = '''
+          <mods:note type="content_warning" displayLabel="Content Warning">Graphic imagery.</mods:note>
+          <mods:note type="preferred citation">Citation note</mods:note>
+          <mods:note displayLabel="Public note">Generic note</mods:note>
+        '''
+        indexer = self.indexer_for_mods_string(sample_mods)
+        index_data = indexer.index_notes().data
+        self.assertEqual(index_data['content_warning_ssim'], ['Graphic imagery.'])
+        self.assertEqual(
+                index_data['note'],
+                ['Citation note', 'Public note: Generic note']
+        )
+        self.assertNotIn('mods_note_content_warning_ssim', index_data)
+        self.assertEqual(index_data['mods_note_preferred_citation_ssim'], ['Citation note'])
+        self.assertEqual(index_data['mods_note_public_note_ssim'], ['Generic note'])
+
+    def test_content_warning_notes_without_label_skip_empty_and_deduplicate(self):
+        sample_mods = '''
+          <mods:note type="content_warning">  First warning.  </mods:note>
+          <mods:note type="content_warning">   </mods:note>
+          <mods:note type="content_warning">Second warning.</mods:note>
+          <mods:note type="content_warning">First warning.</mods:note>
+        '''
+        indexer = self.indexer_for_mods_string(sample_mods)
+        index_data = indexer.index_notes().data
+        self.assertEqual(
+                index_data['content_warning_ssim'],
+                ['First warning.', 'Second warning.']
+        )
+        self.assertNotIn('note', index_data)
+        self.assertNotIn('mods_note_content_warning_ssim', index_data)
+
     def test_multiple_image_accessibility_alt_text_notes_use_first_value(self):
         sample_mods = '''
           <mods:note type="image_accessibility_alt_text"></mods:note>
