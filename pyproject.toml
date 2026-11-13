@@ -7,7 +7,7 @@ requires-python = ">=3.8.9,<3.9"
 dependencies = [
     "bdrocfl==0.5",
     "bdrxml==1.4",
-    "certifi==2021.5.30",
+    "certifi>=2026.10.19",
     "charset-normalizer==2.0.12",
     "click==7.1.2",
     "diskcache==5.2.1",
