@@ -1,39 +1,57 @@
-import logging
 import os
-from os.path import dirname, abspath, join
-import sys
 import time
+from pathlib import Path
+from typing import List, Optional
+
 import dotenv
-import redis
-from rq import Connection, Worker
+from redis import Redis
+from redis.exceptions import BusyLoadingError
+from rq import Worker
 
 
-def start_worker(queues=None):
+def run_worker(queues: List[str]) -> None:
+    """
+    Creates and runs a worker, retrying once if Redis is still loading.
+    Called by: start_worker()
+    """
+    for attempt in range(2):
+        try:
+            worker = Worker(queues, connection=Redis())
+            worker.work()
+            break
+        except BusyLoadingError:
+            if attempt == 1:
+                raise
+            time.sleep(30)
+
+
+def start_worker(queues: Optional[List[str]] = None) -> None:
+    """
+    Forks a child before creating its worker and Redis connection.
+    Called by: main()
+    """
     if not queues:
+        from bdr_solrizer import settings
+
         queues = [settings.HIGH, settings.MEDIUM, settings.LOW]
-    with Connection():
-        w = Worker(queues)
-        pid = os.fork()
-        if pid == 0: #in the child process, we want to run the work() function & then exit
-            try:
-                w.work()
-            except redis.exceptions.BusyLoadingError: #redis is still starting up
-                time.sleep(30)
-                w.work()
-            os._exit(0)
+    pid = os.fork()
+    if pid == 0:
+        run_worker(queues)
+        os._exit(0)
+
+
+def main() -> None:
+    """
+    Loads settings and starts five indexing workers.
+    Called by: the script entry point
+    """
+    dotenv.read_dotenv(str(Path(__file__).resolve().parent.parent / '.env'))
+    from bdr_solrizer import logger
+
+    logger.logger.debug('Starting indexing workers.')
+    for _ in range(5):
+        start_worker()
 
 
 if __name__ == '__main__':
-    CODE_ROOT = dirname(abspath(__file__))
-    if CODE_ROOT not in sys.path:
-        sys.path.append(CODE_ROOT)
-
-    PROJECT_ROOT = dirname(CODE_ROOT)
-    dotenv.read_dotenv(join(PROJECT_ROOT, '.env'))
-
-    from bdr_solrizer import settings
-    #import logger to setup logging before starting workers
-    from bdr_solrizer import logger
-
-    for i in range(5):
-        start_worker()
+    main()
