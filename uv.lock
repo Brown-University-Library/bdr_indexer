@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.8.9, <3.9"
 
 [[package]]
@@ -51,7 +51,7 @@ requires-dist = [
     { name = "redis", specifier = "==3.5.3" },
     { name = "requests", specifier = "==2.27.1" },
     { name = "roman", specifier = "==3.3" },
-    { name = "rq", specifier = "==0.13.0" },
+    { name = "rq", specifier = "==1.16.2" },
     { name = "setuptools", specifier = "==49.2.1" },
     { name = "six", specifier = "==1.16.0" },
     { name = "urllib3", specifier = "==1.26.6" },
@@ -258,15 +258,15 @@ wheels = [
 
 [[package]]
 name = "rq"
-version = "0.13.0"
+version = "1.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "redis" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d2/d7/51904875025b2432cb3c97cc476ab8d2033a8f105393db2267622e56f3ac/rq-0.13.0.tar.gz", hash = "sha256:2ef7de3fa26a4ce41dcd0561bdba12bb62fa5b9b6d21120122d8dbbe44bb6a77", size = 45487, upload-time = "2018-12-11T00:16:01.51Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/1d/a020e8f3559293635dd6283d037bfc15f866136498da3db1e5416c65773d/rq-1.16.2.tar.gz", hash = "sha256:5c5b9ad5fbaf792b8fada25cc7627f4d206a9a4455aced371d4f501cc3f13b34", size = 629881, upload-time = "2024-05-01T07:13:14.136Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/49/ab50a9277231f9d2cb74575869ce70f428e608a4bc92678ad7b4c1a64f32/rq-0.13.0-py2.py3-none-any.whl", hash = "sha256:c3c6bdf738652b8464e8b32c5e158a5e646ee553711d5a1e9c6c23ab17ef68b1", size = 54467, upload-time = "2018-12-11T00:15:23.563Z" },
+    { url = "https://files.pythonhosted.org/packages/46/35/db396caf7cfe71a9e661cea520b276f1472df25015e7cb9143c65a1dca6d/rq-1.16.2-py3-none-any.whl", hash = "sha256:52e619f6cb469b00e04da74305045d244b75fecb2ecaa4f26422add57d3c5f09", size = 90911, upload-time = "2024-05-01T07:13:11.158Z" },
 ]
 
 [[package]]

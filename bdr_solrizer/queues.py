@@ -1,17 +1,30 @@
-import time
-import sys
 from redis import Redis
 from rq import Queue
-from rq.queue import get_failed_queue
-from . import settings
+from rq.job import Job
 
-HIGH_PRIORITY_Q = Queue(settings.HIGH, connection=Redis())
-MEDIUM_PRIORITY_Q = Queue(settings.MEDIUM, connection=Redis())
-LOW_PRIORITY_Q = Queue(settings.LOW, connection=Redis())
-FAILED_Q = get_failed_queue(connection=Redis())
+from . import failed_jobs, settings
 
-def queue_solrize_job(pid, action=settings.ADD_ACTION, priority=settings.HIGH):
-    #start w/ default priority - only ADD_ACTION/DELETE_ACTION can be HIGH
+REDIS_CONNECTION: Redis = Redis()
+HIGH_PRIORITY_Q: Queue = Queue(settings.HIGH, connection=REDIS_CONNECTION)
+MEDIUM_PRIORITY_Q: Queue = Queue(settings.MEDIUM, connection=REDIS_CONNECTION)
+LOW_PRIORITY_Q: Queue = Queue(settings.LOW, connection=REDIS_CONNECTION)
+
+
+def get_failed_job_count() -> int:
+    """
+    Counts failed jobs across the connected Redis database.
+    Called by: queue_solrize.queue_jobs()
+    """
+    return failed_jobs.get_failed_job_count(REDIS_CONNECTION)
+
+
+def queue_solrize_job(pid: str, action: str = settings.ADD_ACTION, priority: str = settings.HIGH) -> Job:
+    """
+    Queues an indexing job at the requested priority.
+    Also serves solrizer.Solrizer._queue_dependent_object_jobs().
+    Called by: queue_solrize.queue_jobs(), solrizer.Solrizer._update_solr_document()
+    """
+    ## Starts with the action's default priority; only add and delete default to high.
     if action in [settings.ADD_ACTION, settings.DELETE_ACTION]:
         queue = HIGH_PRIORITY_Q
     else:
